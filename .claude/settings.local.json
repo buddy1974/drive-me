@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(dir C:\\\\Users\\\\loneb\\\\Documents\\\\ai-software-dev\\\\projects\\\\drive-me:*)",
+      "Bash(cmd:*)",
+      "Bash(yarn create:*)",
+      "Bash(npm --version)",
+      "Bash(npx --version)",
+      "Bash(npm list:*)",
+      "Bash(npm install:*)",
+      "Bash(yarn:*)"
+    ]
+  }
+}

@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  phone       String   @unique
+  name        String?
+  email       String?  @unique
+  isVerified  Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  jobs        Job[]    @relation("UserJobs")
+  payments    Payment[]
+}
+
+model Agent {
+  id          String      @id @default(cuid())
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  phone       String      @unique
+  name        String
+  email       String?     @unique
+  isVerified  Boolean     @default(false)
+  isActive    Boolean     @default(true)
+  isOnline    Boolean     @default(false)
+  status      AgentStatus @default(OFFLINE)
+  jobs        Job[]       @relation("AgentJobs")
+}
+
+model Job {
+  id          String    @id @default(cuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  userId      String
+  agentId     String?
+  status      JobStatus @default(PENDING)
+  pickupLat   Float
+  pickupLng   Float
+  pickupAddr  String
+  dropLat     Float
+  dropLng     Float
+  dropAddr    String
+  price       Float?
+  user        User      @relation("UserJobs", fields: [userId], references: [id])
+  agent       Agent?    @relation("AgentJobs", fields: [agentId], references: [id])
+  payment     Payment?
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  userId      String
+  jobId       String        @unique
+  amount      Float
+  currency    String        @default("XAF")
+  provider    String        // "MTN" | "ORANGE"
+  status      PaymentStatus @default(PENDING)
+  reference   String?       @unique
+  user        User          @relation(fields: [userId], references: [id])
+  job         Job           @relation(fields: [jobId], references: [id])
+}
+
+enum JobStatus {
+  PENDING
+  ACCEPTED
+  EN_ROUTE
+  ARRIVED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AgentStatus {
+  OFFLINE
+  ONLINE
+  BUSY
+}
+
+enum PaymentStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REFUNDED
+}

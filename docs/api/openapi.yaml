@@ -1,0 +1,58 @@
+openapi: 3.0.3
+info:
+  title: Drive Me API
+  description: Backend API for the Drive Me ride-hailing platform (Cameroon)
+  version: 1.0.0
+  contact:
+    name: Drive Me Dev
+servers:
+  - url: http://localhost:4000/api/v1
+    description: Local development
+  - url: https://api.driveme.cm/api/v1
+    description: Production
+
+# Paths to be documented as routes are implemented
+paths:
+  /health:
+    get:
+      summary: Health check
+      responses:
+        '200':
+          description: API is healthy
+
+  /auth/request-otp:
+    post:
+      summary: Request OTP for phone number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                  example: '+237612345678'
+
+  /auth/verify-otp:
+    post:
+      summary: Verify OTP and get JWT token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                phone:
+                  type: string
+                otp:
+                  type: string
+                  example: '123456'
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
