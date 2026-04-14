@@ -23,12 +23,12 @@ const sendOtpLimiter = rateLimit({
 })
 
 const sendOtpSchema = z.object({
-  phone: z.string().regex(/^\+237[0-9]{9}$/, 'Phone must be a valid Cameroon number (+237XXXXXXXXX)'),
+  phone: z.string().regex(/^\+[1-9]\d{6,14}$/, 'Phone must be in E.164 format (+[country code][number)'),
   actor: z.enum(['user', 'agent']),
 })
 
 const verifyOtpSchema = z.object({
-  phone: z.string().regex(/^\+237[0-9]{9}$/, 'Phone must be a valid Cameroon number (+237XXXXXXXXX)'),
+  phone: z.string().regex(/^\+[1-9]\d{6,14}$/, 'Phone must be in E.164 format (+[country code][number)'),
   code: z.string().length(6, 'OTP must be 6 digits').regex(/^\d{6}$/, 'OTP must be numeric'),
   actor: z.enum(['user', 'agent']),
   name: z.string().min(2).max(100).optional(),
