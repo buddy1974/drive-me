@@ -5,6 +5,7 @@ import {
   refreshAccessToken,
   logout,
   getMe,
+  ActorRole,
   NotFoundError,
   UnauthorizedError,
   TooManyAttemptsError,
@@ -69,7 +70,7 @@ export async function refreshHandler(req: Request, res: Response): Promise<void>
 // POST /api/v1/auth/logout
 export async function logoutHandler(req: Request, res: Response): Promise<void> {
   try {
-    await logout(req.actor.sessionId, req.actor.role)
+    await logout(req.actor.sessionId, req.actor.role as ActorRole)
     res.status(204).send()
   } catch (err) {
     handleError(res, err)
@@ -79,7 +80,7 @@ export async function logoutHandler(req: Request, res: Response): Promise<void> 
 // GET /api/v1/auth/me
 export async function meHandler(req: Request, res: Response): Promise<void> {
   try {
-    const actor = await getMe(req.actor.actorId, req.actor.role)
+    const actor = await getMe(req.actor.actorId, req.actor.role as ActorRole)
     res.json(actor)
   } catch (err) {
     handleError(res, err)

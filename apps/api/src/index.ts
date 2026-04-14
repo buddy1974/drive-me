@@ -4,6 +4,7 @@ import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
 import authRoutes from './routes/auth.routes'
+import adminAuthRoutes from './routes/admin.auth.routes'
 
 dotenv.config()
 
@@ -32,6 +33,7 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // Routes
 app.use('/api/v1/auth', authRoutes)
+app.use('/api/v1/admin/auth', adminAuthRoutes)
 // app.use('/api/v1/users', userRoutes)
 // app.use('/api/v1/agents', agentRoutes)
 // app.use('/api/v1/jobs', jobRoutes)

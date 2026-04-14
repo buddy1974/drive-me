@@ -2,8 +2,9 @@ import jwt from 'jsonwebtoken'
 
 export interface JwtPayload {
   sub: string
-  role: 'user' | 'agent'
+  role: 'user' | 'agent' | 'admin'
   sessionId: string
+  adminRole?: 'SUPER_ADMIN' | 'OPS'
 }
 
 export function signAccessToken(payload: JwtPayload): string {
