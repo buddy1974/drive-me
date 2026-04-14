@@ -3,6 +3,7 @@ import cors from 'cors'
 import helmet from 'helmet'
 import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
+import authRoutes from './routes/auth.routes'
 
 dotenv.config()
 
@@ -29,8 +30,8 @@ app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })
 })
 
-// Routes (to be added)
-// app.use('/api/v1/auth', authRoutes)
+// Routes
+app.use('/api/v1/auth', authRoutes)
 // app.use('/api/v1/users', userRoutes)
 // app.use('/api/v1/agents', agentRoutes)
 // app.use('/api/v1/jobs', jobRoutes)
