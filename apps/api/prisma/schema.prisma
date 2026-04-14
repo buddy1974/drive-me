@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,87 +7,612 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model User {
-  id          String   @id @default(cuid())
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  phone       String   @unique
-  name        String?
-  email       String?  @unique
-  isVerified  Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  jobs        Job[]    @relation("UserJobs")
-  payments    Payment[]
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  BANNED
 }
 
-model Agent {
-  id          String      @id @default(cuid())
-  createdAt   DateTime    @default(now())
-  updatedAt   DateTime    @updatedAt
-  phone       String      @unique
-  name        String
-  email       String?     @unique
-  isVerified  Boolean     @default(false)
-  isActive    Boolean     @default(true)
-  isOnline    Boolean     @default(false)
-  status      AgentStatus @default(OFFLINE)
-  jobs        Job[]       @relation("AgentJobs")
+enum AgentStatus {
+  PENDING_VERIFICATION
+  VERIFIED
+  ONLINE
+  OFFLINE
+  SUSPENDED
+  BANNED
 }
 
-model Job {
-  id          String    @id @default(cuid())
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  userId      String
-  agentId     String?
-  status      JobStatus @default(PENDING)
-  pickupLat   Float
-  pickupLng   Float
-  pickupAddr  String
-  dropLat     Float
-  dropLng     Float
-  dropAddr    String
-  price       Float?
-  user        User      @relation("UserJobs", fields: [userId], references: [id])
-  agent       Agent?    @relation("AgentJobs", fields: [agentId], references: [id])
-  payment     Payment?
+enum AgentLevel {
+  LEVEL_1
+  LEVEL_2
+  LEVEL_3
 }
 
-model Payment {
-  id          String        @id @default(cuid())
-  createdAt   DateTime      @default(now())
-  updatedAt   DateTime      @updatedAt
-  userId      String
-  jobId       String        @unique
-  amount      Float
-  currency    String        @default("XAF")
-  provider    String        // "MTN" | "ORANGE"
-  status      PaymentStatus @default(PENDING)
-  reference   String?       @unique
-  user        User          @relation(fields: [userId], references: [id])
-  job         Job           @relation(fields: [jobId], references: [id])
+enum AdminRole {
+  SUPER_ADMIN
+  OPS
+}
+
+enum AdminStatus {
+  ACTIVE
+  INACTIVE
+}
+
+enum VehicleType {
+  MOTORBIKE
+  CAR
+  ON_FOOT
+}
+
+enum ServiceType {
+  ERRAND
+  PICKUP
+  DELIVERY
+}
+
+enum PaymentMethod {
+  MTN_MOMO
+  ORANGE_MONEY
+  CASH
 }
 
 enum JobStatus {
   PENDING
   ACCEPTED
-  EN_ROUTE
-  ARRIVED
+  EN_ROUTE_TO_PICKUP
+  ARRIVED_AT_PICKUP
   IN_PROGRESS
+  ARRIVED_AT_DESTINATION
   COMPLETED
-  CANCELLED
-}
-
-enum AgentStatus {
-  OFFLINE
-  ONLINE
-  BUSY
+  CANCELLED_BY_USER
+  CANCELLED_BY_AGENT
+  CANCELLED_BY_ADMIN
 }
 
 enum PaymentStatus {
   PENDING
   PROCESSING
-  COMPLETED
+  PAID
   FAILED
   REFUNDED
+  PARTIALLY_REFUNDED
+}
+
+enum PayoutStatus {
+  PENDING
+  PROCESSING
+  PAID
+  FAILED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  RESOLVED
+}
+
+enum DisputeRuling {
+  FULL_REFUND
+  PARTIAL_REFUND
+  NO_REFUND
+  WARNING
+  SUSPENSION
+}
+
+enum VerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  NEEDS_MORE_INFO
+}
+
+enum VerificationMethod {
+  PHONE_CONFIRMATION
+  PHYSICAL_VISIT
+  NEIGHBOUR_CONFIRMATION
+}
+
+enum DocumentType {
+  ID_FRONT
+  ID_BACK
+  VEHICLE_PHOTO
+  DRIVER_LICENSE
+  AGENT_AGREEMENT
+}
+
+enum NotificationChannel {
+  PUSH
+  SMS
+}
+
+enum ActorType {
+  USER
+  AGENT
+  ADMIN
+}
+
+enum DevicePlatform {
+  IOS
+  ANDROID
+}
+
+model User {
+  id        String     @id @default(uuid())
+  phone     String     @unique
+  name      String
+  status    UserStatus @default(ACTIVE)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+
+  sessions         UserSession[]
+  otpCodes         OTPCode[]            @relation("UserOTP")
+  deviceTokens     DeviceToken[]        @relation("UserDeviceTokens")
+  jobs             Job[]
+  payments         Payment[]
+  ratings          Rating[]
+  disputesRaised   Dispute[]            @relation("DisputeRaisedByUser")
+  cancellations    CancellationRecord[] @relation("CancelledByUser")
+  notifications    Notification[]       @relation("UserNotifications")
+  jobStatusChanges JobStatusHistory[]   @relation("UserStatusChanges")
+
+  @@index([phone])
+  @@index([status])
+}
+
+model Agent {
+  id           String      @id @default(uuid())
+  phone        String      @unique
+  name         String
+  status       AgentStatus @default(PENDING_VERIFICATION)
+  agentLevel   AgentLevel  @default(LEVEL_1)
+  vehicleType  VehicleType
+  vehiclePlate String
+  vehicleMake  String
+  vehicleModel String
+  vehicleYear  Int
+  momoPhone    String?
+  orangePhone  String?
+  avgRating    Float       @default(0)
+  totalRatings Int         @default(0)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  sessions         AgentSession[]
+  otpCodes         OTPCode[]            @relation("AgentOTP")
+  deviceTokens     DeviceToken[]        @relation("AgentDeviceTokens")
+  verificationDocs VerificationDocument[]
+  verification     AgentVerification?
+  jobsAccepted     Job[]
+  payouts          Payout[]
+  earnings         AgentEarnings?
+  ratings          Rating[]
+  locationPings    AgentLocationPing[]
+  disputesRaised   Dispute[]            @relation("DisputeRaisedByAgent")
+  cancellations    CancellationRecord[] @relation("CancelledByAgent")
+  notifications    Notification[]       @relation("AgentNotifications")
+  jobStatusChanges JobStatusHistory[]   @relation("AgentStatusChanges")
+
+  @@index([phone])
+  @@index([status])
+  @@index([agentLevel])
+}
+
+model AdminUser {
+  id           String      @id @default(uuid())
+  email        String      @unique
+  passwordHash String
+  name         String
+  role         AdminRole   @default(OPS)
+  status       AdminStatus @default(ACTIVE)
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+
+  sessions             AdminSession[]
+  verificationsHandled AgentVerification[]
+  disputesHandled      Dispute[]            @relation("DisputeHandledByAdmin")
+  cancellations        CancellationRecord[] @relation("CancelledByAdmin")
+  notifications        Notification[]       @relation("AdminNotifications")
+  jobStatusChanges     JobStatusHistory[]   @relation("AdminStatusChanges")
+  auditLogs            AuditLog[]
+
+  @@index([email])
+  @@index([role])
+  @@index([status])
+}
+
+model UserSession {
+  id         String   @id @default(uuid())
+  userId     String
+  token      String   @unique
+  expiresAt  DateTime
+  deviceInfo String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model AgentSession {
+  id         String   @id @default(uuid())
+  agentId    String
+  token      String   @unique
+  expiresAt  DateTime
+  deviceInfo String?
+  ipAddress  String?
+  createdAt  DateTime @default(now())
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model AdminSession {
+  id        String   @id @default(uuid())
+  adminId   String
+  token     String   @unique
+  expiresAt DateTime
+  ipAddress String?
+  createdAt DateTime @default(now())
+
+  admin AdminUser @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId])
+  @@index([token])
+  @@index([expiresAt])
+}
+
+model OTPCode {
+  id        String   @id @default(uuid())
+  phone     String
+  code      String
+  expiresAt DateTime
+  attempts  Int      @default(0)
+  used      Boolean  @default(false)
+  userId    String?
+  agentId   String?
+  createdAt DateTime @default(now())
+
+  user  User?  @relation("UserOTP",  fields: [userId],  references: [id], onDelete: SetNull)
+  agent Agent? @relation("AgentOTP", fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([phone])
+  @@index([expiresAt])
+  @@index([used])
+}
+
+model DeviceToken {
+  id        String         @id @default(uuid())
+  token     String         @unique
+  platform  DevicePlatform
+  userId    String?
+  agentId   String?
+  active    Boolean        @default(true)
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+
+  user  User?  @relation("UserDeviceTokens",  fields: [userId],  references: [id], onDelete: SetNull)
+  agent Agent? @relation("AgentDeviceTokens", fields: [agentId], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([agentId])
+}
+
+model Location {
+  id          String   @id @default(uuid())
+  lat         Float
+  lng         Float
+  address     String
+  quarter     String
+  landmark    String?
+  description String?
+  createdAt   DateTime @default(now())
+
+  pickupJobs      Job[] @relation("PickupLocation")
+  destinationJobs Job[] @relation("DestinationLocation")
+
+  @@index([lat, lng])
+}
+
+model ServiceZone {
+  id         String   @id @default(uuid())
+  name       String
+  boundaries Json
+  active     Boolean  @default(true)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  pricingRules PricingRule[]
+
+  @@index([active])
+}
+
+model AgentLocationPing {
+  id        String   @id @default(uuid())
+  agentId   String
+  lat       Float
+  lng       Float
+  jobId     String?
+  createdAt DateTime @default(now())
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, createdAt])
+  @@index([jobId])
+}
+
+model Job {
+  id                    String        @id @default(uuid())
+  userId                String
+  agentId               String?
+  serviceType           ServiceType
+  status                JobStatus     @default(PENDING)
+  pickupLocationId      String
+  destinationLocationId String?
+  description           String
+  estimatedPrice        Float
+  finalPrice            Float?
+  paymentMethod         PaymentMethod
+  commissionRate        Float
+  platformFee           Float?
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  user                User               @relation(fields: [userId], references: [id])
+  agent               Agent?             @relation(fields: [agentId], references: [id])
+  pickupLocation      Location           @relation("PickupLocation", fields: [pickupLocationId], references: [id])
+  destinationLocation Location?          @relation("DestinationLocation", fields: [destinationLocationId], references: [id])
+  statusHistory       JobStatusHistory[]
+  payment             Payment?
+  payout              Payout?
+  rating              Rating?
+  dispute             Dispute?
+  cancellation        CancellationRecord?
+
+  @@index([userId])
+  @@index([agentId])
+  @@index([status])
+  @@index([serviceType])
+  @@index([createdAt])
+  @@index([status, createdAt])
+  @@index([userId, status])
+  @@index([agentId, status])
+}
+
+model JobStatusHistory {
+  id               String    @id @default(uuid())
+  jobId            String
+  status           JobStatus
+  changedByUserId  String?
+  changedByAgentId String?
+  changedByAdminId String?
+  changedByType    ActorType
+  notes            String?
+  createdAt        DateTime  @default(now())
+
+  job   Job        @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  user  User?      @relation("UserStatusChanges",  fields: [changedByUserId],  references: [id], onDelete: SetNull)
+  agent Agent?     @relation("AgentStatusChanges", fields: [changedByAgentId], references: [id], onDelete: SetNull)
+  admin AdminUser? @relation("AdminStatusChanges", fields: [changedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([jobId])
+  @@index([jobId, createdAt])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Payment {
+  id             String        @id @default(uuid())
+  jobId          String        @unique
+  userId         String
+  amount         Float
+  method         PaymentMethod
+  status         PaymentStatus @default(PENDING)
+  mobileMoneyRef String?
+  failureReason  String?
+  retriedAt      DateTime?
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  job  Job  @relation(fields: [jobId], references: [id])
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([jobId])
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Payout {
+  id                String       @id @default(uuid())
+  jobId             String       @unique
+  agentId           String
+  amount            Float
+  status            PayoutStatus @default(PENDING)
+  mobileMoneyNumber String
+  mobileMoneyRef    String?
+  failureReason     String?
+  retriedAt         DateTime?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  job   Job   @relation(fields: [jobId], references: [id])
+  agent Agent @relation(fields: [agentId], references: [id])
+
+  @@index([jobId])
+  @@index([agentId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model AgentEarnings {
+  id            String   @id @default(uuid())
+  agentId       String   @unique
+  totalEarned   Float    @default(0)
+  completedJobs Int      @default(0)
+  pendingPayout Float    @default(0)
+  updatedAt     DateTime @updatedAt
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+}
+
+model VerificationDocument {
+  id         String       @id @default(uuid())
+  agentId    String
+  type       DocumentType
+  fileUrl    String
+  fileName   String
+  uploadedAt DateTime     @default(now())
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId])
+  @@index([agentId, type])
+}
+
+model AgentVerification {
+  id                String              @id @default(uuid())
+  agentId           String              @unique
+  adminId           String?
+  status            VerificationStatus  @default(PENDING)
+  method            VerificationMethod?
+  notes             String?
+  neighbourNotes    String?
+  requestedInfoNote String?
+  rejectionReason   String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  agent Agent      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  admin AdminUser? @relation(fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([adminId])
+}
+
+model Rating {
+  id        String   @id @default(uuid())
+  jobId     String   @unique
+  userId    String
+  agentId   String
+  stars     Int
+  comment   String?
+  createdAt DateTime @default(now())
+
+  job   Job   @relation(fields: [jobId], references: [id])
+  user  User  @relation(fields: [userId], references: [id])
+  agent Agent @relation(fields: [agentId], references: [id])
+
+  @@index([agentId])
+  @@index([userId])
+}
+
+model Dispute {
+  id              String         @id @default(uuid())
+  jobId           String         @unique
+  raisedByUserId  String?
+  raisedByAgentId String?
+  raisedByType    ActorType
+  description     String
+  status          DisputeStatus  @default(OPEN)
+  ruling          DisputeRuling?
+  rulingNote      String?
+  refundAmount    Float?
+  adminId         String?
+  resolvedAt      DateTime?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  job   Job        @relation(fields: [jobId], references: [id])
+  user  User?      @relation("DisputeRaisedByUser",   fields: [raisedByUserId],  references: [id], onDelete: SetNull)
+  agent Agent?     @relation("DisputeRaisedByAgent",  fields: [raisedByAgentId], references: [id], onDelete: SetNull)
+  admin AdminUser? @relation("DisputeHandledByAdmin", fields: [adminId],         references: [id], onDelete: SetNull)
+
+  @@index([status])
+  @@index([adminId])
+  @@index([createdAt])
+}
+
+model CancellationRecord {
+  id                 String    @id @default(uuid())
+  jobId              String    @unique
+  cancelledByUserId  String?
+  cancelledByAgentId String?
+  cancelledByAdminId String?
+  cancelledByType    ActorType
+  reason             String?
+  feeApplied         Float     @default(0)
+  createdAt          DateTime  @default(now())
+
+  job   Job        @relation(fields: [jobId], references: [id])
+  user  User?      @relation("CancelledByUser",  fields: [cancelledByUserId],  references: [id], onDelete: SetNull)
+  agent Agent?     @relation("CancelledByAgent", fields: [cancelledByAgentId], references: [id], onDelete: SetNull)
+  admin AdminUser? @relation("CancelledByAdmin", fields: [cancelledByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([jobId])
+  @@index([createdAt])
+}
+
+model Notification {
+  id            String              @id @default(uuid())
+  recipientType ActorType
+  userId        String?
+  agentId       String?
+  adminId       String?
+  channel       NotificationChannel
+  type          String
+  title         String
+  body          String
+  read          Boolean             @default(false)
+  jobId         String?
+  createdAt     DateTime            @default(now())
+
+  user  User?      @relation("UserNotifications",  fields: [userId],  references: [id], onDelete: SetNull)
+  agent Agent?     @relation("AgentNotifications", fields: [agentId], references: [id], onDelete: SetNull)
+  admin AdminUser? @relation("AdminNotifications", fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([userId,  read])
+  @@index([agentId, read])
+  @@index([adminId, read])
+  @@index([jobId])
+  @@index([createdAt])
+}
+
+model PricingRule {
+  id            String      @id @default(uuid())
+  serviceType   ServiceType
+  zoneId        String?
+  baseRate      Float
+  multiplier    Float       @default(1.0)
+  effectiveFrom DateTime    @default(now())
+  effectiveTo   DateTime?
+  createdAt     DateTime    @default(now())
+
+  zone ServiceZone? @relation(fields: [zoneId], references: [id], onDelete: SetNull)
+
+  @@index([serviceType])
+  @@index([zoneId])
+  @@index([effectiveFrom, effectiveTo])
+}
+
+model AuditLog {
+  id         String   @id @default(uuid())
+  adminId    String
+  action     String
+  targetType String
+  targetId   String
+  details    Json
+  createdAt  DateTime @default(now())
+
+  admin AdminUser @relation(fields: [adminId], references: [id])
+
+  @@index([adminId])
+  @@index([targetType, targetId])
+  @@index([action])
+  @@index([createdAt])
 }
