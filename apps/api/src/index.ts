@@ -5,6 +5,9 @@ import rateLimit from 'express-rate-limit'
 import dotenv from 'dotenv'
 import authRoutes from './routes/auth.routes'
 import adminAuthRoutes from './routes/admin.auth.routes'
+import adminStatsRoutes from './routes/admin.stats.routes'
+import adminAgentsRoutes from './routes/admin.agents.routes'
+import adminJobsRoutes from './routes/admin.jobs.routes'
 
 dotenv.config()
 
@@ -34,6 +37,9 @@ app.get('/health', (_req: Request, res: Response) => {
 // Routes
 app.use('/api/v1/auth', authRoutes)
 app.use('/api/v1/admin/auth', adminAuthRoutes)
+app.use('/api/v1/admin/stats', adminStatsRoutes)
+app.use('/api/v1/admin/agents', adminAgentsRoutes)
+app.use('/api/v1/admin/jobs', adminJobsRoutes)
 // app.use('/api/v1/users', userRoutes)
 // app.use('/api/v1/agents', agentRoutes)
 // app.use('/api/v1/jobs', jobRoutes)
