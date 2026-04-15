@@ -10,6 +10,7 @@ import adminAgentsRoutes from './routes/admin.agents.routes'
 import adminJobsRoutes from './routes/admin.jobs.routes'
 import jobRoutes from './routes/job.routes'
 import ratingRoutes from './routes/rating.routes'
+import paymentRoutes from './routes/payment.routes'
 
 dotenv.config()
 
@@ -27,8 +28,12 @@ app.use(rateLimit({
   max: 100,
 }))
 
-// Body parsing
-app.use(express.json())
+// Body parsing — capture raw body for webhook signature verification
+app.use(express.json({
+  verify: (req: express.Request & { rawBody?: string }, _res, buf) => {
+    req.rawBody = buf.toString('utf-8')
+  },
+}))
 app.use(express.urlencoded({ extended: true }))
 
 // Health check
@@ -44,9 +49,9 @@ app.use('/api/v1/admin/agents', adminAgentsRoutes)
 app.use('/api/v1/admin/jobs', adminJobsRoutes)
 app.use('/api/v1/jobs', jobRoutes)
 app.use('/api/v1/ratings', ratingRoutes)
+app.use('/api/v1/payments', paymentRoutes)
 // app.use('/api/v1/users', userRoutes)
 // app.use('/api/v1/agents', agentRoutes)
-// app.use('/api/v1/payments', paymentRoutes)
 
 app.listen(PORT, () => {
   console.log(`Drive Me API running on port ${PORT}`)
