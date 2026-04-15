@@ -2,7 +2,7 @@ import crypto from 'crypto'
 import { prisma } from '../lib/prisma'
 import { generateOtp, OTP_EXPIRY_MINUTES, OTP_MAX_ATTEMPTS } from '../utils/otp'
 import { signAccessToken, signRefreshToken, verifyRefreshToken, JwtPayload } from '../utils/jwt'
-import { sendOtpSms } from '../utils/twilio'
+import { sendSMS } from '../utils/sms'
 
 export type ActorRole = 'user' | 'agent'
 
@@ -83,7 +83,7 @@ export async function sendOtp(phone: string, actor: ActorRole): Promise<void> {
     data: { phone, code, expiresAt, userId, agentId },
   })
 
-  await sendOtpSms(phone, code)
+  await sendSMS(phone, `Your Drive Me verification code is: ${code}. Valid for ${OTP_EXPIRY_MINUTES} minutes. Do not share this code.`)
 }
 
 // ─── Verify OTP ───────────────────────────────────────────────────────────────
