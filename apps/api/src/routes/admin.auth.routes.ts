@@ -18,6 +18,7 @@ const loginLimiter = rateLimit({
   message: { error: 'Too many login attempts — try again in 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 })
 
 const loginSchema = z.object({

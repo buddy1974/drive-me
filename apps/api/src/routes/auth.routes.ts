@@ -20,6 +20,7 @@ const sendOtpLimiter = rateLimit({
   message: { error: 'Too many OTP requests — try again in 15 minutes' },
   standardHeaders: true,
   legacyHeaders: false,
+  validate: { xForwardedForHeader: false },
 })
 
 const sendOtpSchema = z.object({

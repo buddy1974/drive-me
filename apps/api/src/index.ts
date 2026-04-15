@@ -28,6 +28,7 @@ app.use(cors({
 app.use(rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
   max: 100,
+  validate: { xForwardedForHeader: false },
 }))
 
 // Body parsing — capture raw body for webhook signature verification
