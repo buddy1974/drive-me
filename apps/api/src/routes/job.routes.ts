@@ -4,6 +4,8 @@ import { validate } from '../middleware/validate'
 import { authenticate } from '../middleware/authenticate'
 import {
   createJobHandler,
+  getAvailableJobsHandler,
+  getMyJobsHandler,
   getJobHandler,
   acceptJobHandler,
   updateJobStatusHandler,
@@ -44,7 +46,10 @@ const cancelSchema = z.object({
 })
 
 router.post('/', authenticate, validate(createJobSchema), createJobHandler)
-router.get('/:id', authenticate, getJobHandler)
+// Static routes MUST come before /:id
+router.get('/available', authenticate, getAvailableJobsHandler)
+router.get('/my',        authenticate, getMyJobsHandler)
+router.get('/:id',       authenticate, getJobHandler)
 router.patch('/:id/accept', authenticate, acceptJobHandler)
 router.patch('/:id/status', authenticate, validate(updateStatusSchema), updateJobStatusHandler)
 router.post('/:id/cancel', authenticate, validate(cancelSchema), cancelJobHandler)

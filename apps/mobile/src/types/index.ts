@@ -1,26 +1,37 @@
 export interface User {
-  id: string
-  name: string
-  phone: string
+  id:     string
+  name:   string
+  phone:  string
   status: string
 }
 
+export interface Agent {
+  id:          string
+  name:        string
+  phone:       string
+  status:      string
+  vehicleType: string
+  momoPhone:   string | null
+  orangePhone: string | null
+}
+
 export interface Location {
-  lat: number
-  lng: number
-  address: string
-  quarter: string
+  lat:       number
+  lng:       number
+  address:   string
+  quarter:   string
   landmark?: string
 }
 
 export interface StatusHistoryEntry {
-  id: string
-  status: string
+  id:        string
+  status:    string
   createdAt: string
 }
 
-export type ServiceType = 'ERRAND' | 'PICKUP' | 'DELIVERY'
+export type ServiceType   = 'ERRAND' | 'PICKUP' | 'DELIVERY'
 export type PaymentMethod = 'MTN_MOMO' | 'ORANGE_MONEY' | 'CASH'
+export type ActorType     = 'user' | 'agent'
 
 export type JobStatus =
   | 'PENDING'
@@ -35,21 +46,28 @@ export type JobStatus =
   | 'CANCELLED_BY_ADMIN'
 
 export interface Job {
-  id: string
-  serviceType: ServiceType
-  status: JobStatus
-  description: string
-  estimatedPrice: number
-  finalPrice: number | null
-  paymentMethod: PaymentMethod
-  commissionRate: number
-  createdAt: string
-  updatedAt: string
-  user: { id: string; name: string; phone: string }
-  agent: { id: string; name: string; phone: string } | null
-  pickupLocation: Location
+  id:               string
+  serviceType:      ServiceType
+  status:           JobStatus
+  description:      string
+  estimatedPrice:   number
+  finalPrice:       number | null
+  paymentMethod:    PaymentMethod
+  commissionRate:   number
+  createdAt:        string
+  updatedAt:        string
+  user:             { id: string; name: string; phone: string }
+  agent:            { id: string; name: string; phone: string } | null
+  pickupLocation:   Location
   destinationLocation: Location | null
-  statusHistory: StatusHistoryEntry[]
+  statusHistory:    StatusHistoryEntry[]
+}
+
+export interface AgentEarnings {
+  totalEarned:   number
+  completedJobs: number
+  pendingPayout: number
+  updatedAt:     string | null
 }
 
 export interface ApiError {

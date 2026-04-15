@@ -5,7 +5,7 @@ import {
 } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
-import type { RouteProp }                 from '@react-navigation/native'
+import type { RouteProp }           from '@react-navigation/native'
 import { api }          from '../../services/api'
 import { useAuthStore } from '../../store/authStore'
 import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../constants/theme'
@@ -18,17 +18,14 @@ type Route = RouteProp<AuthStackParamList, 'Name'>
 export default function NameScreen() {
   const navigation = useNavigation<Nav>()
   const { params } = useRoute<Route>()
-  const login      = useAuthStore((s) => s.login)
+  const loginUser  = useAuthStore((s) => s.loginUser)
 
   const [name,    setName]    = useState('')
   const [loading, setLoading] = useState(false)
   const [error,   setError]   = useState<string | null>(null)
 
   async function handleSubmit() {
-    if (!name.trim()) {
-      setError('Please enter your name')
-      return
-    }
+    if (!name.trim()) { setError('Please enter your name'); return }
     setError(null)
     setLoading(true)
     try {
@@ -42,7 +39,7 @@ export default function NameScreen() {
         actor: 'user',
         name:  name.trim(),
       })
-      await login(data.accessToken, data.refreshToken, data.user)
+      await loginUser(data.accessToken, data.refreshToken, data.user)
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } }).response?.data?.error
       setError(msg ?? 'Something went wrong. Try again.')
@@ -99,40 +96,40 @@ const styles = StyleSheet.create({
   back: { position: 'absolute', top: Spacing.xl, left: Spacing.lg },
   backText: { color: Colors.accent, fontSize: FontSize.md },
   title: {
-    fontSize: FontSize.xxl,
+    fontSize:   FontSize.xxl,
     fontWeight: FontWeight.bold,
-    color: Colors.text,
+    color:      Colors.text,
     marginBottom: Spacing.xs,
   },
   subtitle: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
+    color:    Colors.textSecondary,
     marginBottom: Spacing.xl,
   },
   input: {
     backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth:  1,
+    borderColor:  Colors.border,
     borderRadius: Radius.md,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm + 4,
+    paddingVertical:   Spacing.sm + 4,
     fontSize: FontSize.lg,
-    color: Colors.text,
+    color:    Colors.text,
     marginBottom: Spacing.sm,
   },
   inputError: { borderColor: Colors.error },
   errorText: { color: Colors.error, fontSize: FontSize.sm, marginBottom: Spacing.md },
   button: {
     backgroundColor: Colors.accent,
-    borderRadius: Radius.md,
+    borderRadius:    Radius.md,
     paddingVertical: Spacing.md,
-    alignItems: 'center',
-    marginTop: Spacing.sm,
+    alignItems:      'center',
+    marginTop:       Spacing.sm,
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: {
-    color: Colors.textInverse,
-    fontSize: FontSize.md,
+    color:      Colors.textInverse,
+    fontSize:   FontSize.md,
     fontWeight: FontWeight.semibold,
   },
 })

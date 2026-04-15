@@ -5,20 +5,23 @@ import {
 } from 'react-native'
 import { useNavigation, useRoute } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
-import type { RouteProp }                 from '@react-navigation/native'
-import { api }             from '../../services/api'
-import { useAuthStore }    from '../../store/authStore'
+import type { RouteProp }           from '@react-navigation/native'
+import { api }          from '../../services/api'
+import { useAuthStore } from '../../store/authStore'
 import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../constants/theme'
 import type { AuthStackParamList } from '../../navigation/types'
-import type { User }               from '../../types'
+import type { User, Agent }        from '../../types'
 
 type Nav   = StackNavigationProp<AuthStackParamList, 'Otp'>
 type Route = RouteProp<AuthStackParamList, 'Otp'>
 
 export default function OtpScreen() {
-  const navigation = useNavigation<Nav>()
-  const { params } = useRoute<Route>()
-  const login      = useAuthStore((s) => s.login)
+  const navigation  = useNavigation<Nav>()
+  const { params }  = useRoute<Route>()
+  const loginUser   = useAuthStore((s) => s.loginUser)
+  const loginAgent  = useAuthStore((s) => s.loginAgent)
+
+  const actor = params.actor
 
   const [code,    setCode]    = useState('')
   const [loading, setLoading] = useState(false)
@@ -29,13 +32,21 @@ export default function OtpScreen() {
     setError(null)
     setLoading(true)
     try {
-      const { data } = await api.post<{
-        accessToken: string
-        refreshToken: string
-        user: User
-      }>('/auth/verify-otp', { phone: params.phone, otp: code, actor: 'user' })
-      await login(data.accessToken, data.refreshToken, data.user)
-      // RootNavigator will switch to MainTabs automatically
+      if (actor === 'agent') {
+        const { data } = await api.post<{
+          accessToken:  string
+          refreshToken: string
+          agent:        Agent
+        }>('/auth/verify-otp', { phone: params.phone, otp: code, actor: 'agent' })
+        await loginAgent(data.accessToken, data.refreshToken, data.agent)
+      } else {
+        const { data } = await api.post<{
+          accessToken:  string
+          refreshToken: string
+          user:         User
+        }>('/auth/verify-otp', { phone: params.phone, otp: code, actor: 'user' })
+        await loginUser(data.accessToken, data.refreshToken, data.user)
+      }
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } }).response?.data?.error
       if (msg === 'name is required to create a new account') {
@@ -49,9 +60,8 @@ export default function OtpScreen() {
   }
 
   async function handleResend() {
-    setError(null)
     try {
-      await api.post('/auth/send-otp', { phone: params.phone, actor: 'user' })
+      await api.post('/auth/send-otp', { phone: params.phone, actor })
     } catch { /* silent */ }
   }
 
@@ -108,25 +118,25 @@ const styles = StyleSheet.create({
   back: { position: 'absolute', top: Spacing.xl, left: Spacing.lg },
   backText: { color: Colors.accent, fontSize: FontSize.md },
   title: {
-    fontSize: FontSize.xxl,
+    fontSize:   FontSize.xxl,
     fontWeight: FontWeight.bold,
-    color: Colors.text,
+    color:      Colors.text,
     marginBottom: Spacing.xs,
   },
   subtitle: {
     fontSize: FontSize.md,
-    color: Colors.textSecondary,
+    color:    Colors.textSecondary,
     marginBottom: Spacing.xl,
   },
   input: {
     backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
+    borderWidth:  1,
+    borderColor:  Colors.border,
     borderRadius: Radius.md,
     paddingVertical: Spacing.md,
-    fontSize: FontSize.xxl,
+    fontSize:   FontSize.xxl,
     fontWeight: FontWeight.bold,
-    color: Colors.text,
+    color:      Colors.text,
     letterSpacing: 8,
     marginBottom: Spacing.sm,
   },
@@ -134,15 +144,15 @@ const styles = StyleSheet.create({
   errorText: { color: Colors.error, fontSize: FontSize.sm, marginBottom: Spacing.md },
   button: {
     backgroundColor: Colors.accent,
-    borderRadius: Radius.md,
+    borderRadius:    Radius.md,
     paddingVertical: Spacing.md,
-    alignItems: 'center',
-    marginTop: Spacing.sm,
+    alignItems:      'center',
+    marginTop:       Spacing.sm,
   },
   buttonDisabled: { opacity: 0.6 },
   buttonText: {
-    color: Colors.textInverse,
-    fontSize: FontSize.md,
+    color:      Colors.textInverse,
+    fontSize:   FontSize.md,
     fontWeight: FontWeight.semibold,
   },
   resend: { alignItems: 'center', marginTop: Spacing.lg },

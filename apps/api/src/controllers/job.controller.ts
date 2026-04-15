@@ -2,6 +2,8 @@ import { Request, Response } from 'express'
 import {
   createJob,
   getJob,
+  getAvailableJobs,
+  getAgentActiveJobs,
   acceptJob,
   updateJobStatus,
   cancelJob,
@@ -19,6 +21,36 @@ function handleError(res: Response, err: unknown): void {
     res.status(400).json({ error: err.message })
   } else {
     res.status(500).json({ error: 'Internal server error' })
+  }
+}
+
+// GET /api/v1/jobs/available
+export async function getAvailableJobsHandler(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.actor.role !== 'agent') {
+      res.status(403).json({ error: 'Only agents can browse available jobs' })
+      return
+    }
+    const page  = Math.max(1, parseInt(req.query.page  as string) || 1)
+    const limit = Math.min(50, parseInt(req.query.limit as string) || 20)
+    const result = await getAvailableJobs(page, limit)
+    res.json(result)
+  } catch (err) {
+    handleError(res, err)
+  }
+}
+
+// GET /api/v1/jobs/my
+export async function getMyJobsHandler(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.actor.role !== 'agent') {
+      res.status(403).json({ error: 'Only agents can use this endpoint' })
+      return
+    }
+    const jobs = await getAgentActiveJobs(req.actor.actorId)
+    res.json({ jobs })
+  } catch (err) {
+    handleError(res, err)
   }
 }
 

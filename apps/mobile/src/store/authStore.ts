@@ -1,29 +1,39 @@
 import { create } from 'zustand'
 import * as SecureStore from 'expo-secure-store'
 import { api } from '../services/api'
-import type { User } from '../types'
+import type { User, Agent, ActorType } from '../types'
 
 interface AuthState {
-  user:        User | null
-  isLoading:   boolean
-  isHydrated:  boolean
-  setUser:     (user: User | null) => void
-  login:       (accessToken: string, refreshToken: string, user: User) => Promise<void>
-  logout:      () => Promise<void>
-  hydrate:     () => Promise<void>
+  actor:      ActorType | null
+  user:       User  | null
+  agent:      Agent | null
+  isLoading:  boolean
+  isHydrated: boolean
+  loginUser:  (accessToken: string, refreshToken: string, user: User)   => Promise<void>
+  loginAgent: (accessToken: string, refreshToken: string, agent: Agent) => Promise<void>
+  logout:     () => Promise<void>
+  hydrate:    () => Promise<void>
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
+  actor:      null,
   user:       null,
+  agent:      null,
   isLoading:  false,
   isHydrated: false,
 
-  setUser: (user) => set({ user }),
-
-  login: async (accessToken, refreshToken, user) => {
+  loginUser: async (accessToken, refreshToken, user) => {
     await SecureStore.setItemAsync('dm_access',  accessToken)
     await SecureStore.setItemAsync('dm_refresh', refreshToken)
-    set({ user })
+    await SecureStore.setItemAsync('dm_actor',   'user')
+    set({ actor: 'user', user, agent: null })
+  },
+
+  loginAgent: async (accessToken, refreshToken, agent) => {
+    await SecureStore.setItemAsync('dm_access',  accessToken)
+    await SecureStore.setItemAsync('dm_refresh', refreshToken)
+    await SecureStore.setItemAsync('dm_actor',   'agent')
+    set({ actor: 'agent', agent, user: null })
   },
 
   logout: async () => {
@@ -33,20 +43,27 @@ export const useAuthStore = create<AuthState>((set) => ({
     } catch { /* best-effort */ }
     await SecureStore.deleteItemAsync('dm_access')
     await SecureStore.deleteItemAsync('dm_refresh')
-    set({ user: null })
+    await SecureStore.deleteItemAsync('dm_actor')
+    set({ actor: null, user: null, agent: null })
   },
 
   hydrate: async () => {
     set({ isLoading: true })
     try {
       const token = await SecureStore.getItemAsync('dm_access')
-      if (token) {
-        const { data } = await api.get<User>('/auth/me')
-        set({ user: data })
+      const storedActor = await SecureStore.getItemAsync('dm_actor') as ActorType | null
+      if (token && storedActor) {
+        const { data } = await api.get<User | Agent>('/auth/me')
+        if (storedActor === 'user') {
+          set({ actor: 'user', user: data as User, agent: null })
+        } else {
+          set({ actor: 'agent', agent: data as Agent, user: null })
+        }
       }
     } catch {
       await SecureStore.deleteItemAsync('dm_access')
       await SecureStore.deleteItemAsync('dm_refresh')
+      await SecureStore.deleteItemAsync('dm_actor')
     } finally {
       set({ isLoading: false, isHydrated: true })
     }

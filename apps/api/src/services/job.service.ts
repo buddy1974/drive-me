@@ -262,6 +262,39 @@ export async function updateJobStatus(
   })
 }
 
+// ─── Available jobs (agent browse) ───────────────────────────────────────────
+
+export async function getAvailableJobs(page: number, limit: number) {
+  const safeLimit = Math.min(limit, 50)
+  const skip      = (page - 1) * safeLimit
+
+  const [jobs, total] = await Promise.all([
+    prisma.job.findMany({
+      where:   { status: 'PENDING' },
+      select:  JOB_SELECT,
+      orderBy: { createdAt: 'asc' },
+      skip,
+      take: safeLimit,
+    }),
+    prisma.job.count({ where: { status: 'PENDING' } }),
+  ])
+
+  return { jobs, total, page, limit: safeLimit }
+}
+
+// ─── Agent's own active jobs ──────────────────────────────────────────────────
+
+export async function getAgentActiveJobs(agentId: string) {
+  return prisma.job.findMany({
+    where: {
+      agentId,
+      status: { notIn: ['COMPLETED', 'CANCELLED_BY_USER', 'CANCELLED_BY_AGENT', 'CANCELLED_BY_ADMIN'] as never[] },
+    },
+    select:  JOB_SELECT,
+    orderBy: { updatedAt: 'desc' },
+  })
+}
+
 // ─── Cancel job ───────────────────────────────────────────────────────────────
 
 export async function cancelJob(

@@ -23,6 +23,7 @@ export default function HomeScreen() {
   const navigation = useNavigation<Nav>()
   const user       = useAuthStore((s) => s.user)
   const logout     = useAuthStore((s) => s.logout)
+  // user is non-null in MainTabs (root navigator guarantees actor === 'user')
   const activeJobId = useJobStore((s) => s.activeJobId)
 
   function greetUser() {
