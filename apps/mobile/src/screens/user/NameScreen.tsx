@@ -32,14 +32,14 @@ export default function NameScreen() {
       const { data } = await api.post<{
         accessToken:  string
         refreshToken: string
-        user:         User
+        actor:        User
       }>('/auth/verify-otp', {
         phone: params.phone,
         otp:   params.otp,
         actor: 'user',
         name:  name.trim(),
       })
-      await loginUser(data.accessToken, data.refreshToken, data.user)
+      await loginUser(data.accessToken, data.refreshToken, data.actor)
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } }).response?.data?.error
       setError(msg ?? 'Something went wrong. Try again.')

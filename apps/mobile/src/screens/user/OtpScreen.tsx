@@ -32,20 +32,17 @@ export default function OtpScreen() {
     setError(null)
     setLoading(true)
     try {
+      // API always returns { accessToken, refreshToken, actor: {...} }
+      const { data } = await api.post<{
+        accessToken:  string
+        refreshToken: string
+        actor:        User & Agent
+      }>('/auth/verify-otp', { phone: params.phone, otp: code, actor })
+
       if (actor === 'agent') {
-        const { data } = await api.post<{
-          accessToken:  string
-          refreshToken: string
-          agent:        Agent
-        }>('/auth/verify-otp', { phone: params.phone, otp: code, actor: 'agent' })
-        await loginAgent(data.accessToken, data.refreshToken, data.agent)
+        await loginAgent(data.accessToken, data.refreshToken, data.actor)
       } else {
-        const { data } = await api.post<{
-          accessToken:  string
-          refreshToken: string
-          user:         User
-        }>('/auth/verify-otp', { phone: params.phone, otp: code, actor: 'user' })
-        await loginUser(data.accessToken, data.refreshToken, data.user)
+        await loginUser(data.accessToken, data.refreshToken, data.actor)
       }
     } catch (e: unknown) {
       const msg = (e as { response?: { data?: { error?: string } } }).response?.data?.error

@@ -48,17 +48,22 @@ export default function PlaceOrderScreen() {
     setError(null)
     setLoading(true)
     try {
+      // lat/lng default to Yaoundé centre — real geocoding to be added later
+      const YAOUNDE = { lat: 3.8480, lng: 11.5021 }
+
       const body: Record<string, unknown> = {
         serviceType,
         description:     description.trim(),
         paymentMethod,
         pickupLocation: {
+          ...YAOUNDE,
           address: pickupAddress.trim(),
           quarter: pickupQuarter.trim(),
         },
       }
       if (destAddress.trim()) {
         body.destinationLocation = {
+          ...YAOUNDE,
           address: destAddress.trim(),
           quarter: destQuarter.trim() || pickupQuarter.trim(),
         }

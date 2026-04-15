@@ -32,8 +32,8 @@ export default function RoleScreen() {
             onPress={() => navigation.navigate('Phone', { actor: 'agent' })}
           >
             <Text style={styles.cardIcon}>🚗</Text>
-            <Text style={styles.cardTitle}>I'm an agent</Text>
-            <Text style={styles.cardSub}>Accept jobs and earn money</Text>
+            <Text style={[styles.cardTitle, { color: Colors.textInverse }]}>I'm an agent</Text>
+            <Text style={[styles.cardSub,   { color: Colors.textDisabled }]}>Accept jobs and earn money</Text>
           </TouchableOpacity>
         </View>
       </View>

@@ -6,13 +6,13 @@ export interface User {
 }
 
 export interface Agent {
-  id:          string
-  name:        string
-  phone:       string
-  status:      string
-  vehicleType: string
-  momoPhone:   string | null
-  orangePhone: string | null
+  id:           string
+  name:         string
+  phone:        string
+  status:       string
+  vehicleType?: string
+  momoPhone?:   string | null
+  orangePhone?: string | null
 }
 
 export interface Location {
