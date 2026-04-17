@@ -1,7 +1,10 @@
 import axios from 'axios'
 import * as SecureStore from 'expo-secure-store'
+import Constants from 'expo-constants'
 
-export const API_BASE = 'https://drive-me.onrender.com/api/v1'
+export const API_BASE: string =
+  (Constants.expoConfig?.extra?.apiUrl as string | undefined) ??
+  'https://drive-me.onrender.com/api/v1'
 
 export const api = axios.create({
   baseURL: API_BASE,
