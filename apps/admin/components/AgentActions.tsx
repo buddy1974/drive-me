@@ -46,7 +46,7 @@ export function AgentActions({
       <button
         onClick={handleReject}
         disabled={isPending}
-        className="px-2.5 py-1 rounded-md bg-white text-red-600 border border-red-200 text-xs font-medium hover:bg-red-50 disabled:opacity-50 transition-colors"
+        className="px-2.5 py-1 rounded-md bg-red-500/10 text-red-400 border border-red-500/30 text-xs font-medium hover:bg-red-500/20 disabled:opacity-50 transition-colors"
       >
         {isPending ? '…' : 'Reject'}
       </button>
