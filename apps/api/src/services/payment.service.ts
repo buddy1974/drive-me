@@ -5,24 +5,26 @@ import { NotFoundError, UnauthorizedError, ValidationError } from './auth.servic
 export { NotFoundError, UnauthorizedError, ValidationError }
 
 export interface InitiateResult {
-  paymentId: string
-  status: 'pending' | 'processing' | 'paid'
-  message: string
+  paymentId:   string
+  status:      'pending' | 'processing' | 'paid'
+  message:     string
+  paymentUrl?: string  // Orange Money WebPay redirect URL; absent for MTN/Cash
 }
 
 // ─── Token cache ──────────────────────────────────────────────────────────────
 
 interface TokenCache {
   token:     string
-  expiresAt: number // unix ms
+  expiresAt: number  // unix ms
 }
 
 let mtnCollectionTokenCache: TokenCache | null = null
 let mtnWithdrawTokenCache:   TokenCache | null = null
+let orangeTokenCache:        TokenCache | null = null
 
 async function fetchOAuthToken(
-  tokenUrl: string,
-  consumerKey: string,
+  tokenUrl:       string,
+  consumerKey:    string,
   consumerSecret: string,
 ): Promise<string> {
   const credentials = Buffer.from(`${consumerKey}:${consumerSecret}`).toString('base64')
@@ -53,8 +55,8 @@ async function getMtnCollectionToken(): Promise<string> {
     return mtnCollectionTokenCache.token
   }
 
-  const baseUrl      = process.env.MTN_MOMO_BASE_URL ?? 'https://api.mtn.com/v1'
-  const consumerKey  = process.env.MTN_MOMO_API_USER!
+  const baseUrl        = process.env.MTN_MOMO_BASE_URL ?? 'https://api.mtn.com/v1'
+  const consumerKey    = process.env.MTN_MOMO_API_USER!
   const consumerSecret = process.env.MTN_MOMO_API_KEY!
 
   const token = await fetchOAuthToken(
@@ -75,10 +77,9 @@ async function getMtnWithdrawToken(): Promise<string> {
     return mtnWithdrawTokenCache.token
   }
 
-  // Withdraw API uses a separate preprod token endpoint
-  const withdrawBaseUrl  = process.env.MTN_MOMO_WITHDRAW_URL ?? 'https://preprod.mtn.com/v1'
-  const consumerKey      = process.env.MTN_MOMO_API_USER!
-  const consumerSecret   = process.env.MTN_MOMO_API_KEY!
+  const withdrawBaseUrl = process.env.MTN_MOMO_WITHDRAW_URL ?? 'https://preprod.mtn.com/v1'
+  const consumerKey     = process.env.MTN_MOMO_API_USER!
+  const consumerSecret  = process.env.MTN_MOMO_API_KEY!
 
   const token = await fetchOAuthToken(
     `${withdrawBaseUrl}/oauth/access_token`,
@@ -93,9 +94,9 @@ async function getMtnWithdrawToken(): Promise<string> {
 // ─── MTN MADAPI — Collect from user ──────────────────────────────────────────
 
 async function requestMtnCollection(
-  phone: string,
-  amount: number,
-  jobId: string,
+  phone:       string,
+  amount:      number,
+  jobId:       string,
   referenceId: string,
 ): Promise<void> {
   const token   = await getMtnCollectionToken()
@@ -110,12 +111,12 @@ async function requestMtnCollection(
       'X-Callback-Url': 'https://drive-me.onrender.com/api/v1/payments/webhook/mtn',
     },
     body: JSON.stringify({
-      amount:          String(Math.round(amount)),
-      currency:        'XAF',
-      customerMsisdn:  phone.replace('+', ''),
-      description:     'Drive Me job payment',
-      referenceId:     jobId,
-      payerNote:       'Drive Me delivery payment',
+      amount:         String(Math.round(amount)),
+      currency:       'XAF',
+      customerMsisdn: phone.replace('+', ''),
+      description:    'Drive Me job payment',
+      referenceId:    jobId,
+      payerNote:      'Drive Me delivery payment',
     }),
   })
 
@@ -130,8 +131,8 @@ async function requestMtnCollection(
 
 async function requestMtnWithdrawal(
   agentMomoPhone: string,
-  amount: number,
-  payoutId: string,
+  amount:         number,
+  payoutId:       string,
 ): Promise<void> {
   const token          = await getMtnWithdrawToken()
   const withdrawBaseUrl = process.env.MTN_MOMO_WITHDRAW_URL ?? 'https://preprod.mtn.com/v1'
@@ -165,35 +166,38 @@ async function requestMtnWithdrawal(
   }
 }
 
-// ─── Orange Money helpers ─────────────────────────────────────────────────────
+// ─── Orange Money — OAuth2 token (cached 3600s) ───────────────────────────────
 
-async function getOrangeAccessToken(): Promise<string> {
-  const apiKey      = process.env.ORANGE_MONEY_API_KEY!
-  const credentials = Buffer.from(apiKey).toString('base64')
+async function orangeGetToken(): Promise<string> {
+  const now = Date.now()
+  if (orangeTokenCache && orangeTokenCache.expiresAt > now + 60_000) {
+    return orangeTokenCache.token
+  }
 
-  const res = await fetch('https://api.orange.com/oauth/v3/token', {
-    method: 'POST',
-    headers: {
-      Authorization:  `Basic ${credentials}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-      Accept:         'application/json',
-    },
-    body: 'grant_type=client_credentials',
-  })
+  const clientId     = process.env.ORANGE_CLIENT_ID!
+  const clientSecret = process.env.ORANGE_CLIENT_SECRET!
 
-  if (!res.ok) throw new Error(`Orange token request failed: ${res.status}`)
-  const data = await res.json() as { access_token: string }
-  return data.access_token
+  const token = await fetchOAuthToken(
+    'https://api.orange.com/oauth/v3/token',
+    clientId,
+    clientSecret,
+  )
+
+  orangeTokenCache = { token, expiresAt: now + 3600 * 1000 }
+  return token
 }
 
-async function requestOrangeCollection(
-  phone: string,
+// ─── Orange Money — WebPay initiation ────────────────────────────────────────
+// Orange WebPay is a redirect flow: the response contains a payment_url that
+// the customer must open in a browser to approve the transaction.
+
+async function initiateOrangeMoney(
   amount: number,
-  referenceId: string,
-  orderId: string,
-): Promise<void> {
-  const token  = await getOrangeAccessToken()
-  const apiKey = process.env.ORANGE_MONEY_API_KEY!
+  jobId:  string,
+): Promise<string> {  // resolves to the payment_url
+  const token       = await orangeGetToken()
+  const merchantKey = process.env.ORANGE_MERCHANT_KEY!
+  const webhookUrl  = 'https://drive-me.onrender.com/api/v1/payments/webhook/orange'
 
   const res = await fetch(
     'https://api.orange.com/orange-money-webpay/cm/v1/webpayment',
@@ -204,31 +208,91 @@ async function requestOrangeCollection(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        merchant_key:     apiKey,
-        currency:         'XAF',
-        order_id:         orderId,
-        amount:           String(Math.round(amount)),
-        return_url:       process.env.ORANGE_RETURN_URL  ?? '',
-        cancel_url:       process.env.ORANGE_CANCEL_URL  ?? '',
-        notif_url:        'https://drive-me.onrender.com/api/v1/payments/webhook/orange',
-        lang:             'fr',
-        reference:        referenceId,
-        customer_msisdn:  phone.replace('+', ''),
+        merchant_key: merchantKey,
+        currency:     'XAF',
+        order_id:     jobId,
+        amount:       String(Math.round(amount)),
+        return_url:   webhookUrl,
+        cancel_url:   webhookUrl,
+        notif_url:    webhookUrl,
+        lang:         'fr',
+        reference:    jobId,
       }),
     },
   )
 
   if (!res.ok) {
     const body = await res.text()
-    throw new Error(`Orange collection request failed (${res.status}): ${body}`)
+    throw new Error(`Orange WebPay initiation failed (${res.status}): ${body}`)
   }
+
+  const data = await res.json() as {
+    status?: number
+    data?:   { payment_url?: string; payment_token?: string }
+  }
+
+  const paymentUrl = data.data?.payment_url
+  if (!paymentUrl) {
+    throw new Error('Orange WebPay response missing payment_url')
+  }
+
+  return paymentUrl
+}
+
+// ─── Orange Money — Webhook ───────────────────────────────────────────────────
+
+export async function handleOrangeWebhook(
+  rawBody:   string,
+  signature: string | undefined,
+): Promise<void> {
+  // Orange signs webhook notifications with HMAC-SHA256 using the merchant key
+  const merchantKey = process.env.ORANGE_MERCHANT_KEY
+  if (merchantKey && signature) {
+    const expected  = crypto.createHmac('sha256', merchantKey).update(rawBody).digest('hex')
+    const sigBuffer = Buffer.from(signature, 'hex')
+    const expBuffer = Buffer.from(expected, 'hex')
+    if (sigBuffer.length !== expBuffer.length || !crypto.timingSafeEqual(sigBuffer, expBuffer)) {
+      throw new UnauthorizedError('Invalid Orange webhook signature')
+    }
+  }
+
+  const body = JSON.parse(rawBody) as {
+    status?:    string
+    order_id?:  string
+    reference?: string
+    txnid?:     string
+    amount?:    string
+    message?:   string
+  }
+
+  // Orange sends reference (our jobId) or order_id as identifier
+  const referenceId = body.reference ?? body.order_id
+  if (!referenceId) return
+
+  const payment = await prisma.payment.findFirst({
+    where: { OR: [{ mobileMoneyRef: referenceId }, { jobId: referenceId }] },
+  })
+  if (!payment || payment.status !== 'PROCESSING') return
+
+  // Orange WebPay uses "SUCCESS" for approved transactions
+  const isSuccess = body.status === 'SUCCESS'
+
+  await prisma.payment.update({
+    where: { id: payment.id },
+    data: {
+      status: isSuccess ? 'PAID' : 'FAILED',
+      ...(!isSuccess ? { failureReason: body.message ?? 'Payment failed or cancelled' } : {}),
+    },
+  })
+
+  if (isSuccess) await triggerPayout(payment.jobId)
 }
 
 // ─── Payout trigger ───────────────────────────────────────────────────────────
 
 async function triggerPayout(jobId: string): Promise<void> {
   const payout = await prisma.payout.findUnique({
-    where: { jobId },
+    where:   { jobId },
     include: { agent: { select: { momoPhone: true, orangePhone: true } } },
   })
   if (!payout || payout.status !== 'PENDING') return
@@ -236,7 +300,7 @@ async function triggerPayout(jobId: string): Promise<void> {
   await prisma.payout.update({ where: { id: payout.id }, data: { status: 'PROCESSING' } })
 
   try {
-    const hasMtnCreds = !!(process.env.MTN_MOMO_API_USER && process.env.MTN_MOMO_API_KEY)
+    const hasMtnCreds    = !!(process.env.MTN_MOMO_API_USER && process.env.MTN_MOMO_API_KEY)
     const agentMomoPhone = payout.agent?.momoPhone
 
     if (hasMtnCreds && agentMomoPhone) {
@@ -248,18 +312,18 @@ async function triggerPayout(jobId: string): Promise<void> {
     await prisma.$transaction(async (tx) => {
       await tx.payout.update({
         where: { id: payout.id },
-        data: { status: 'PAID' },
+        data:  { status: 'PAID' },
       })
       await tx.agentEarnings.updateMany({
         where: { agentId: payout.agentId },
-        data: { pendingPayout: { decrement: payout.amount } },
+        data:  { pendingPayout: { decrement: payout.amount } },
       })
     })
   } catch (err) {
     console.error('[payout] failed for job', jobId, err)
     await prisma.payout.update({
       where: { id: payout.id },
-      data: { status: 'FAILED', failureReason: String(err) },
+      data:  { status: 'FAILED', failureReason: String(err) },
     })
   }
 }
@@ -267,25 +331,25 @@ async function triggerPayout(jobId: string): Promise<void> {
 // ─── Initiate payment ─────────────────────────────────────────────────────────
 
 export async function initiatePayment(
-  jobId: string,
+  jobId:  string,
   userId: string,
 ): Promise<InitiateResult> {
   const job = await prisma.job.findUnique({
     where: { id: jobId },
     select: {
-      id: true,
-      userId: true,
-      status: true,
-      finalPrice: true,
+      id:             true,
+      userId:         true,
+      status:         true,
+      finalPrice:     true,
       estimatedPrice: true,
-      paymentMethod: true,
-      user: { select: { phone: true } },
+      paymentMethod:  true,
+      user:           { select: { phone: true } },
     },
   })
 
-  if (!job)                   throw new NotFoundError('Job not found')
-  if (job.userId !== userId)  throw new UnauthorizedError('Access denied')
-  if (job.status !== 'COMPLETED') throw new ValidationError('Payment can only be initiated for completed jobs')
+  if (!job)                        throw new NotFoundError('Job not found')
+  if (job.userId !== userId)       throw new UnauthorizedError('Access denied')
+  if (job.status !== 'COMPLETED')  throw new ValidationError('Payment can only be initiated for completed jobs')
 
   const amount = job.finalPrice ?? job.estimatedPrice
 
@@ -313,7 +377,7 @@ export async function initiatePayment(
     return { paymentId: payment.id, status: 'paid', message: 'Cash payment recorded' }
   }
 
-  // ── MTN MADAPI ──────────────────────────────────────────────────────────────
+  // ── MTN MoMo ────────────────────────────────────────────────────────────────
   if (job.paymentMethod === 'MTN_MOMO') {
     if (!process.env.MTN_MOMO_API_KEY || !process.env.MTN_MOMO_API_USER) {
       console.warn('[payment] MTN MADAPI credentials not configured')
@@ -327,7 +391,11 @@ export async function initiatePayment(
         where: { id: payment.id },
         data:  { status: 'PROCESSING', mobileMoneyRef: referenceId },
       })
-      return { paymentId: payment.id, status: 'processing', message: 'MTN MoMo payment request sent — approve on your phone' }
+      return {
+        paymentId: payment.id,
+        status:    'processing',
+        message:   'MTN MoMo payment request sent — approve on your phone',
+      }
     } catch (err) {
       console.error('[payment] MTN MADAPI collection failed', err)
       await prisma.payment.update({
@@ -338,28 +406,39 @@ export async function initiatePayment(
     }
   }
 
-  // ── Orange Money ─────────────────────────────────────────────────────────────
+  // ── Orange Money (WebPay redirect flow) ─────────────────────────────────────
   if (job.paymentMethod === 'ORANGE_MONEY') {
-    if (!process.env.ORANGE_MONEY_API_KEY) {
-      console.warn('[payment] Orange Money credentials not configured')
+    const hasCreds = !!(
+      process.env.ORANGE_CLIENT_ID &&
+      process.env.ORANGE_CLIENT_SECRET &&
+      process.env.ORANGE_MERCHANT_KEY
+    )
+
+    if (!hasCreds) {
+      console.warn('[payment] Orange Money credentials not configured (need ORANGE_CLIENT_ID, ORANGE_CLIENT_SECRET, ORANGE_MERCHANT_KEY)')
       return { paymentId: payment.id, status: 'pending', message: 'Payment processor not configured' }
     }
 
-    const referenceId = crypto.randomUUID()
     try {
-      await requestOrangeCollection(job.user.phone, amount, referenceId, jobId)
+      const paymentUrl = await initiateOrangeMoney(amount, jobId)
       await prisma.payment.update({
         where: { id: payment.id },
-        data:  { status: 'PROCESSING', mobileMoneyRef: referenceId },
+        // Use jobId as the reference so the webhook can match by order_id/reference
+        data:  { status: 'PROCESSING', mobileMoneyRef: jobId },
       })
-      return { paymentId: payment.id, status: 'processing', message: 'Orange Money payment request sent — approve on your phone' }
+      return {
+        paymentId:  payment.id,
+        status:     'processing',
+        message:    'Orange Money payment ready — complete payment on the Orange Money page',
+        paymentUrl,
+      }
     } catch (err) {
-      console.error('[payment] Orange collection failed', err)
+      console.error('[payment] Orange WebPay initiation failed', err)
       await prisma.payment.update({
         where: { id: payment.id },
         data:  { status: 'FAILED', failureReason: String(err) },
       })
-      throw new ValidationError('Orange Money payment request failed — please retry')
+      throw new ValidationError('Orange Money payment initiation failed — please retry')
     }
   }
 
@@ -369,7 +448,7 @@ export async function initiatePayment(
 // ─── MTN webhook ──────────────────────────────────────────────────────────────
 
 export async function processMtnWebhook(
-  rawBody: string,
+  rawBody:   string,
   signature: string | undefined,
 ): Promise<void> {
   // Signature verification using the API key as the HMAC secret
@@ -410,50 +489,13 @@ export async function processMtnWebhook(
   if (isSuccess) await triggerPayout(payment.jobId)
 }
 
-// ─── Orange webhook ───────────────────────────────────────────────────────────
+// ─── Orange webhook (public alias) ───────────────────────────────────────────
 
 export async function processOrangeWebhook(
-  rawBody: string,
+  rawBody:   string,
   signature: string | undefined,
 ): Promise<void> {
-  const apiKey = process.env.ORANGE_MONEY_API_KEY
-  if (apiKey && signature) {
-    const expected  = crypto.createHmac('sha256', apiKey).update(rawBody).digest('hex')
-    const sigBuffer = Buffer.from(signature, 'hex')
-    const expBuffer = Buffer.from(expected, 'hex')
-    if (sigBuffer.length !== expBuffer.length || !crypto.timingSafeEqual(sigBuffer, expBuffer)) {
-      throw new UnauthorizedError('Invalid Orange webhook signature')
-    }
-  }
-
-  const body = JSON.parse(rawBody) as {
-    status?:    string
-    order_id?:  string
-    reference?: string
-    txnid?:     string
-    amount?:    string
-    message?:   string
-  }
-
-  const referenceId = body.reference ?? body.order_id
-  if (!referenceId) return
-
-  const payment = await prisma.payment.findFirst({
-    where: { OR: [{ mobileMoneyRef: referenceId }, { jobId: referenceId }] },
-  })
-  if (!payment || payment.status !== 'PROCESSING') return
-
-  const isSuccess = body.status === 'SUCCESS'
-
-  await prisma.payment.update({
-    where: { id: payment.id },
-    data: {
-      status: isSuccess ? 'PAID' : 'FAILED',
-      ...(!isSuccess ? { failureReason: body.message ?? 'Payment failed' } : {}),
-    },
-  })
-
-  if (isSuccess) await triggerPayout(payment.jobId)
+  return handleOrangeWebhook(rawBody, signature)
 }
 
 // ─── Get payment ──────────────────────────────────────────────────────────────

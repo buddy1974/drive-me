@@ -2,7 +2,7 @@ import { Request, Response } from 'express'
 import {
   initiatePayment,
   processMtnWebhook,
-  processOrangeWebhook,
+  handleOrangeWebhook,
   getPaymentByJobId,
   NotFoundError,
   UnauthorizedError,
@@ -58,7 +58,7 @@ export async function orangeWebhookHandler(req: Request, res: Response): Promise
   try {
     const rawBody   = (req as Request & { rawBody?: string }).rawBody ?? JSON.stringify(req.body)
     const signature = req.headers['x-orange-signature'] as string | undefined
-    await processOrangeWebhook(rawBody, signature)
+    await handleOrangeWebhook(rawBody, signature)
     res.status(200).json({ received: true })
   } catch (err) {
     if (err instanceof UnauthorizedError) {
