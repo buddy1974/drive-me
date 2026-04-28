@@ -3,6 +3,7 @@ import rateLimit from 'express-rate-limit'
 import { z } from 'zod'
 import { validate } from '../middleware/validate'
 import { authenticate } from '../middleware/authenticate'
+import { prisma } from '../lib/prisma'
 import {
   sendOtpHandler,
   verifyOtpHandler,
@@ -45,5 +46,25 @@ router.post('/verify-otp', validate(verifyOtpSchema), verifyOtpHandler)
 router.post('/refresh', validate(refreshSchema), refreshHandler)
 router.post('/logout', authenticate, logoutHandler)
 router.get('/me', authenticate, meHandler)
+
+router.post(
+  '/push-token',
+  authenticate,
+  validate(z.object({ token: z.string().min(1).max(300) })),
+  async (req, res): Promise<void> => {
+    const { token }  = req.body as { token: string }
+    const { actorId, role } = req.actor
+    try {
+      if (role === 'user') {
+        await prisma.user.update({ where: { id: actorId }, data: { pushToken: token } })
+      } else if (role === 'agent') {
+        await prisma.agent.update({ where: { id: actorId }, data: { pushToken: token } })
+      }
+      res.json({ success: true })
+    } catch {
+      res.status(500).json({ error: 'Failed to save push token' })
+    }
+  },
+)
 
 export default router

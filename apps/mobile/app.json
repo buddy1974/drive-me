@@ -30,7 +30,10 @@
       "favicon": "./assets/favicon.png"
     },
     "extra": {
-      "apiUrl": "https://drive-me.onrender.com/api/v1"
+      "apiUrl": "https://drive-me.onrender.com/api/v1",
+      "eas": {
+        "projectId": "dc7141da-c6aa-4a5f-8a24-854e2c75810a"
+      }
     }
   }
 }

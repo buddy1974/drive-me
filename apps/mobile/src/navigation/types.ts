@@ -32,3 +32,12 @@ export type AgentTabParamList = {
   JobsTab:     { screen?: keyof AgentJobsStackParamList }
   EarningsTab: undefined
 }
+
+// ─── Agent onboarding ─────────────────────────────────────────────────────────
+
+export type AgentOnboardingStackParamList = {
+  AgentOnboarding: undefined
+  AgentProfile:    undefined
+  AgentDocument:   undefined
+  AgentPending:    undefined
+}

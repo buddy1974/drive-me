@@ -1,5 +1,7 @@
 import { prisma } from '../lib/prisma'
 import { NotFoundError, UnauthorizedError, ValidationError } from './auth.service'
+import { convertToW3W } from '../utils/w3w'
+import { sendPush } from '../utils/push'
 
 export { NotFoundError, UnauthorizedError, ValidationError }
 
@@ -73,17 +75,25 @@ export interface CreateJobInput {
 // ─── Create job ───────────────────────────────────────────────────────────────
 
 export async function createJob(userId: string, input: CreateJobInput) {
-  const estimatedPrice = await estimatePrice(input.serviceType)
+  // Resolve price + W3W addresses in parallel before opening the transaction
+  const [estimatedPrice, pickupW3w, destW3w] = await Promise.all([
+    estimatePrice(input.serviceType),
+    convertToW3W(input.pickupLocation.lat, input.pickupLocation.lng),
+    input.destinationLocation
+      ? convertToW3W(input.destinationLocation.lat, input.destinationLocation.lng)
+      : Promise.resolve(null),
+  ])
 
-  return prisma.$transaction(async (tx) => {
+  const job = await prisma.$transaction(async (tx) => {
     const pickup = await tx.location.create({
       data: {
-        lat: input.pickupLocation.lat,
-        lng: input.pickupLocation.lng,
-        address: input.pickupLocation.address,
-        quarter: input.pickupLocation.quarter,
-        landmark: input.pickupLocation.landmark ?? null,
+        lat:         input.pickupLocation.lat,
+        lng:         input.pickupLocation.lng,
+        address:     input.pickupLocation.address,
+        quarter:     input.pickupLocation.quarter,
+        landmark:    input.pickupLocation.landmark    ?? null,
         description: input.pickupLocation.description ?? null,
+        w3wAddress:  pickupW3w ?? null,
       },
     })
 
@@ -91,43 +101,64 @@ export async function createJob(userId: string, input: CreateJobInput) {
     if (input.destinationLocation) {
       const dest = await tx.location.create({
         data: {
-          lat: input.destinationLocation.lat,
-          lng: input.destinationLocation.lng,
-          address: input.destinationLocation.address,
-          quarter: input.destinationLocation.quarter,
-          landmark: input.destinationLocation.landmark ?? null,
+          lat:         input.destinationLocation.lat,
+          lng:         input.destinationLocation.lng,
+          address:     input.destinationLocation.address,
+          quarter:     input.destinationLocation.quarter,
+          landmark:    input.destinationLocation.landmark    ?? null,
           description: input.destinationLocation.description ?? null,
+          w3wAddress:  destW3w ?? null,
         },
       })
       destinationId = dest.id
     }
 
-    const job = await tx.job.create({
+    const created = await tx.job.create({
       data: {
         userId,
-        serviceType: input.serviceType as never,
-        status: 'PENDING',
-        pickupLocationId: pickup.id,
+        serviceType:           input.serviceType as never,
+        status:                'PENDING',
+        pickupLocationId:      pickup.id,
         destinationLocationId: destinationId,
-        description: input.description,
+        description:           input.description,
         estimatedPrice,
-        paymentMethod: input.paymentMethod as never,
-        commissionRate: 0.15,
+        paymentMethod:         input.paymentMethod as never,
+        commissionRate:        0.15,
       },
       select: JOB_SELECT,
     })
 
     await tx.jobStatusHistory.create({
       data: {
-        jobId: job.id,
-        status: 'PENDING',
+        jobId:          created.id,
+        status:         'PENDING',
         changedByUserId: userId,
-        changedByType: 'USER',
+        changedByType:  'USER',
       },
     })
 
-    return job
+    return created
   })
+
+  // Notify online agents about the new job (fire-and-forget — outside transaction)
+  void (async () => {
+    try {
+      const agents = await prisma.agent.findMany({
+        where:  { status: 'ONLINE', pushToken: { not: null } },
+        select: { pushToken: true },
+      })
+      for (const a of agents) {
+        void sendPush(
+          a.pushToken,
+          'New job available',
+          `${input.serviceType} in ${input.pickupLocation.quarter}`,
+          { jobId: job.id },
+        )
+      }
+    } catch { /* never break the create flow */ }
+  })()
+
+  return job
 }
 
 // ─── Get job ──────────────────────────────────────────────────────────────────
@@ -160,31 +191,48 @@ export async function acceptJob(jobId: string, agentId: string) {
   if (!job) throw new NotFoundError('Job not found')
   if (job.status !== 'PENDING') throw new ValidationError('Job is no longer available')
 
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.job.update({
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.job.update({
       where: { id: jobId },
-      data: { agentId, status: 'ACCEPTED' },
+      data:  { agentId, status: 'ACCEPTED' },
       select: JOB_SELECT,
     })
 
     await tx.jobStatusHistory.create({
       data: {
         jobId,
-        status: 'ACCEPTED',
+        status:           'ACCEPTED',
         changedByAgentId: agentId,
-        changedByType: 'AGENT',
+        changedByType:    'AGENT',
       },
     })
 
-    return updated
+    return u
   })
+
+  // Notify the user that their job was accepted (fire-and-forget)
+  void (async () => {
+    try {
+      const user = await prisma.user.findUnique({
+        where:  { id: job.userId },
+        select: { pushToken: true, name: true },
+      })
+      const agent = await prisma.agent.findUnique({
+        where:  { id: agentId },
+        select: { name: true },
+      })
+      void sendPush(user?.pushToken, 'Agent accepted your job', `${agent?.name ?? 'Your agent'} is on the way`)
+    } catch { /* ignore */ }
+  })()
+
+  return updated
 }
 
 // ─── Update job status ────────────────────────────────────────────────────────
 
 export async function updateJobStatus(
-  jobId: string,
-  agentId: string,
+  jobId:     string,
+  agentId:   string,
   newStatus: string,
 ) {
   const job = await prisma.job.findUnique({ where: { id: jobId } })
@@ -199,10 +247,10 @@ export async function updateJobStatus(
   }
 
   const isCompleting = newStatus === 'COMPLETED'
-  const finalPrice = isCompleting ? job.estimatedPrice : null
+  const finalPrice   = isCompleting ? job.estimatedPrice : null
 
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.job.update({
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.job.update({
       where: { id: jobId },
       data: {
         status: newStatus as never,
@@ -214,9 +262,9 @@ export async function updateJobStatus(
     await tx.jobStatusHistory.create({
       data: {
         jobId,
-        status: newStatus as never,
+        status:           newStatus as never,
         changedByAgentId: agentId,
-        changedByType: 'AGENT',
+        changedByType:    'AGENT',
       },
     })
 
@@ -224,7 +272,7 @@ export async function updateJobStatus(
       const payoutAmount = job.estimatedPrice * (1 - job.commissionRate)
 
       const agent = await tx.agent.findUnique({
-        where: { id: agentId },
+        where:  { id: agentId },
         select: { momoPhone: true, orangePhone: true },
       })
 
@@ -235,31 +283,46 @@ export async function updateJobStatus(
           data: {
             jobId,
             agentId,
-            amount: payoutAmount,
-            status: 'PENDING',
+            amount:            payoutAmount,
+            status:            'PENDING',
             mobileMoneyNumber,
           },
         })
       }
 
       await tx.agentEarnings.upsert({
-        where: { agentId },
+        where:  { agentId },
         create: {
           agentId,
-          totalEarned: payoutAmount,
+          totalEarned:   payoutAmount,
           completedJobs: 1,
           pendingPayout: payoutAmount,
         },
         update: {
-          totalEarned: { increment: payoutAmount },
+          totalEarned:   { increment: payoutAmount },
           completedJobs: { increment: 1 },
           pendingPayout: { increment: payoutAmount },
         },
       })
     }
 
-    return updated
+    return u
   })
+
+  // Notify user on completion (fire-and-forget)
+  if (isCompleting) {
+    void (async () => {
+      try {
+        const user = await prisma.user.findUnique({
+          where:  { id: job.userId },
+          select: { pushToken: true },
+        })
+        void sendPush(user?.pushToken, 'Job completed ✓', 'Your job has been completed. Rate your agent.')
+      } catch { /* ignore */ }
+    })()
+  }
+
+  return updated
 }
 
 // ─── Available jobs (agent browse) ───────────────────────────────────────────
@@ -298,9 +361,9 @@ export async function getAgentActiveJobs(agentId: string) {
 // ─── Cancel job ───────────────────────────────────────────────────────────────
 
 export async function cancelJob(
-  jobId: string,
+  jobId:   string,
   actorId: string,
-  role: 'user' | 'agent',
+  role:    'user' | 'agent',
   reason?: string,
 ) {
   const job = await prisma.job.findUnique({ where: { id: jobId } })
@@ -312,43 +375,54 @@ export async function cancelJob(
   if (role === 'agent' && job.status === 'PENDING') {
     throw new ValidationError('Agents cannot cancel jobs they have not accepted')
   }
-  if (role === 'user' && job.userId !== actorId) {
-    throw new UnauthorizedError('Access denied')
-  }
-  if (role === 'agent' && job.agentId !== actorId) {
-    throw new UnauthorizedError('Not your job')
-  }
+  if (role === 'user'  && job.userId  !== actorId) throw new UnauthorizedError('Access denied')
+  if (role === 'agent' && job.agentId !== actorId) throw new UnauthorizedError('Not your job')
 
   const cancelStatus = role === 'user' ? 'CANCELLED_BY_USER' : 'CANCELLED_BY_AGENT'
 
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.job.update({
+  const updated = await prisma.$transaction(async (tx) => {
+    const u = await tx.job.update({
       where: { id: jobId },
-      data: { status: cancelStatus as never },
+      data:  { status: cancelStatus as never },
       select: JOB_SELECT,
     })
 
     await tx.jobStatusHistory.create({
       data: {
         jobId,
-        status: cancelStatus as never,
-        changedByType: role === 'user' ? 'USER' : 'AGENT',
-        changedByUserId: role === 'user' ? actorId : null,
+        status:           cancelStatus as never,
+        changedByType:    role === 'user' ? 'USER' : 'AGENT',
+        changedByUserId:  role === 'user'  ? actorId : null,
         changedByAgentId: role === 'agent' ? actorId : null,
-        notes: reason ?? null,
+        notes:            reason ?? null,
       },
     })
 
     await tx.cancellationRecord.create({
       data: {
         jobId,
-        cancelledByType: role === 'user' ? 'USER' : 'AGENT',
-        cancelledByUserId: role === 'user' ? actorId : null,
+        cancelledByType:   role === 'user' ? 'USER' : 'AGENT',
+        cancelledByUserId:  role === 'user'  ? actorId : null,
         cancelledByAgentId: role === 'agent' ? actorId : null,
-        reason: reason ?? null,
+        reason:             reason ?? null,
       },
     })
 
-    return updated
+    return u
   })
+
+  // Notify the other party (fire-and-forget)
+  void (async () => {
+    try {
+      if (role === 'user' && job.agentId) {
+        const agent = await prisma.agent.findUnique({ where: { id: job.agentId }, select: { pushToken: true } })
+        void sendPush(agent?.pushToken, 'Job cancelled', 'The customer cancelled the job')
+      } else if (role === 'agent') {
+        const user = await prisma.user.findUnique({ where: { id: job.userId }, select: { pushToken: true } })
+        void sendPush(user?.pushToken, 'Job cancelled', 'Your agent cancelled the job')
+      }
+    } catch { /* ignore */ }
+  })()
+
+  return updated
 }

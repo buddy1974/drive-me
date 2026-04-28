@@ -11,6 +11,10 @@ import {
   UnauthorizedError,
   ValidationError,
 } from '../services/job.service'
+import {
+  postLocationUpdate,
+  getLatestLocation,
+} from '../services/location.service'
 
 function handleError(res: Response, err: unknown): void {
   if (err instanceof NotFoundError) {
@@ -122,6 +126,31 @@ export async function cancelJobHandler(req: Request, res: Response): Promise<voi
     const { reason } = req.body as { reason?: string }
     const job = await cancelJob(req.params.id, req.actor.actorId, role, reason)
     res.json(job)
+  } catch (err) {
+    handleError(res, err)
+  }
+}
+
+// POST /api/v1/jobs/:id/location
+export async function postLocationHandler(req: Request, res: Response): Promise<void> {
+  try {
+    if (req.actor.role !== 'agent') {
+      res.status(403).json({ error: 'Agents only' })
+      return
+    }
+    const { lat, lng } = req.body as { lat: number; lng: number }
+    const update = await postLocationUpdate(req.params.id, req.actor.actorId, lat, lng)
+    res.status(201).json(update)
+  } catch (err) {
+    handleError(res, err)
+  }
+}
+
+// GET /api/v1/jobs/:id/location
+export async function getLocationHandler(req: Request, res: Response): Promise<void> {
+  try {
+    const loc = await getLatestLocation(req.params.id, req.actor.actorId, req.actor.role)
+    res.json(loc ?? null)
   } catch (err) {
     handleError(res, err)
   }

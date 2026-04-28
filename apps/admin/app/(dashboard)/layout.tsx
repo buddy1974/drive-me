@@ -12,7 +12,7 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: admin } = await apiFetch<AdminData>('/admin/auth/me')
 
   return (
-    <div className="flex min-h-screen bg-zinc-50">
+    <div className="flex min-h-screen bg-[#0F172A]">
       <Sidebar
         adminName={admin?.name ?? '—'}
         adminRole={admin?.role ?? 'OPS'}

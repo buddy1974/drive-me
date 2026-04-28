@@ -141,6 +141,7 @@ model User {
   phone     String     @unique
   name      String
   status    UserStatus @default(ACTIVE)
+  pushToken String?
   createdAt DateTime   @default(now())
   updatedAt DateTime   @updatedAt
 
@@ -172,6 +173,7 @@ model Agent {
   vehicleYear  Int
   momoPhone    String?
   orangePhone  String?
+  pushToken    String?
   avgRating    Float       @default(0)
   totalRatings Int         @default(0)
   createdAt    DateTime    @default(now())
@@ -187,6 +189,7 @@ model Agent {
   earnings         AgentEarnings?
   ratings          Rating[]
   locationPings    AgentLocationPing[]
+  locationUpdates  LocationUpdate[]
   disputesRaised   Dispute[]            @relation("DisputeRaisedByAgent")
   cancellations    CancellationRecord[] @relation("CancelledByAgent")
   notifications    Notification[]       @relation("AgentNotifications")
@@ -311,6 +314,7 @@ model Location {
   quarter     String
   landmark    String?
   description String?
+  w3wAddress  String?
   createdAt   DateTime @default(now())
 
   pickupJobs      Job[] @relation("PickupLocation")
@@ -346,6 +350,22 @@ model AgentLocationPing {
   @@index([jobId])
 }
 
+model LocationUpdate {
+  id        String   @id @default(uuid())
+  jobId     String
+  agentId   String
+  lat       Float
+  lng       Float
+  w3w       String?
+  createdAt DateTime @default(now())
+
+  job   Job   @relation(fields: [jobId],   references: [id], onDelete: Cascade)
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt])
+  @@index([agentId])
+}
+
 model Job {
   id                    String        @id @default(uuid())
   userId                String
@@ -373,6 +393,7 @@ model Job {
   rating              Rating?
   dispute             Dispute?
   cancellation        CancellationRecord?
+  locationUpdates     LocationUpdate[]
 
   @@index([userId])
   @@index([agentId])

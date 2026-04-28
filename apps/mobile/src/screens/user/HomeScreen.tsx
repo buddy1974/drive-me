@@ -38,13 +38,18 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <View>
+          <View style={styles.headerLeft}>
             <Text style={styles.greeting}>{greetUser()},</Text>
             <Text style={styles.name}>{user?.name ?? 'there'} 👋</Text>
           </View>
-          <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
-            <Text style={styles.logoutText}>Sign out</Text>
-          </TouchableOpacity>
+          <View style={styles.headerRight}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{(user?.name ?? 'U').charAt(0).toUpperCase()}</Text>
+            </View>
+            <TouchableOpacity onPress={logout} style={styles.logoutBtn}>
+              <Text style={styles.logoutText}>Sign out</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Active job banner */}
@@ -86,6 +91,23 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems:     'flex-start',
     marginBottom:   Spacing.xl,
+  },
+  headerLeft:  { flex: 1 },
+  headerRight: { alignItems: 'flex-end', gap: Spacing.sm },
+  avatar: {
+    width:           40,
+    height:          40,
+    borderRadius:    20,
+    backgroundColor: Colors.surface,
+    borderWidth:     1.5,
+    borderColor:     Colors.primary,
+    alignItems:      'center',
+    justifyContent:  'center',
+  },
+  avatarText: {
+    fontSize:   FontSize.md,
+    fontWeight: FontWeight.bold,
+    color:      Colors.primary,
   },
   greeting: { fontSize: FontSize.md, color: Colors.textSecondary },
   name:     { fontSize: FontSize.xl, fontWeight: FontWeight.bold, color: Colors.text },

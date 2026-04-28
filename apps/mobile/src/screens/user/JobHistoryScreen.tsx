@@ -70,7 +70,14 @@ export default function JobHistoryScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
-      <Text style={styles.title}>Job History</Text>
+      <View style={styles.titleRow}>
+        <Text style={styles.title}>Job History</Text>
+        {jobs.length > 0 && (
+          <View style={styles.countBadge}>
+            <Text style={styles.countText}>{jobs.length}</Text>
+          </View>
+        )}
+      </View>
 
       {loading && jobIds.length > 0 && (
         <ActivityIndicator color={Colors.accent} style={{ marginTop: Spacing.md }} />
@@ -97,13 +104,31 @@ export default function JobHistoryScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
-  title: {
-    fontSize:    FontSize.xl,
-    fontWeight:  FontWeight.bold,
-    color:       Colors.text,
+  titleRow: {
+    flexDirection: 'row',
+    alignItems:    'center',
+    gap:           Spacing.sm,
     paddingHorizontal: Spacing.lg,
-    paddingTop:  Spacing.lg,
+    paddingTop:    Spacing.lg,
     paddingBottom: Spacing.md,
+  },
+  title: {
+    fontSize:   FontSize.xl,
+    fontWeight: FontWeight.bold,
+    color:      Colors.text,
+  },
+  countBadge: {
+    backgroundColor:   Colors.accentLight,
+    borderRadius:      Radius.full,
+    paddingHorizontal: Spacing.sm,
+    paddingVertical:   2,
+    minWidth:          24,
+    alignItems:        'center',
+  },
+  countText: {
+    fontSize:   FontSize.xs,
+    fontWeight: FontWeight.bold,
+    color:      Colors.accent,
   },
   list: { paddingHorizontal: Spacing.lg, paddingBottom: Spacing.xl },
   card: {

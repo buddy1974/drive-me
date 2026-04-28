@@ -6,8 +6,9 @@ import {
 import { useNavigation, useRoute } from '@react-navigation/native'
 import type { StackNavigationProp } from '@react-navigation/stack'
 import type { RouteProp }           from '@react-navigation/native'
-import { api }          from '../../services/api'
-import { useAuthStore } from '../../store/authStore'
+import { SafeAreaView }  from 'react-native-safe-area-context'
+import { api }           from '../../services/api'
+import { useAuthStore }  from '../../store/authStore'
 import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../constants/theme'
 import type { AuthStackParamList } from '../../navigation/types'
 import type { User }               from '../../types'
@@ -48,88 +49,145 @@ export default function NameScreen() {
     }
   }
 
+  const canSubmit = name.trim().length > 0 && !loading
+
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <View style={styles.inner}>
-        <TouchableOpacity onPress={() => navigation.goBack()} style={styles.back}>
-          <Text style={styles.backText}>← Back</Text>
-        </TouchableOpacity>
+    <SafeAreaView style={styles.safeArea}>
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.inner}>
+          {/* Brand */}
+          <View style={styles.brand}>
+            <View style={styles.logoMark}>
+              <Text style={styles.logoLetter}>D</Text>
+            </View>
+            <Text style={styles.logoName}>Drive Me</Text>
+          </View>
 
-        <Text style={styles.title}>What's your name?</Text>
-        <Text style={styles.subtitle}>This is how agents will greet you</Text>
+          <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
+            <Text style={styles.backText}>← Back</Text>
+          </TouchableOpacity>
 
-        <TextInput
-          style={[styles.input, error ? styles.inputError : null]}
-          value={name}
-          onChangeText={setName}
-          placeholder="Your full name"
-          placeholderTextColor={Colors.textDisabled}
-          autoCapitalize="words"
-          returnKeyType="done"
-          onSubmitEditing={handleSubmit}
-          autoFocus
-        />
+          <Text style={styles.title}>What's your name?</Text>
+          <Text style={styles.subtitle}>This is how agents will greet you</Text>
 
-        {error && <Text style={styles.errorText}>{error}</Text>}
+          <TextInput
+            style={[styles.input, error ? styles.inputError : null]}
+            value={name}
+            onChangeText={setName}
+            placeholder="Your full name"
+            placeholderTextColor={Colors.textDisabled}
+            autoCapitalize="words"
+            returnKeyType="done"
+            onSubmitEditing={handleSubmit}
+            autoFocus
+          />
 
-        <TouchableOpacity
-          style={[styles.button, loading && styles.buttonDisabled]}
-          onPress={handleSubmit}
-          disabled={loading}
-        >
-          {loading
-            ? <ActivityIndicator color={Colors.textInverse} />
-            : <Text style={styles.buttonText}>Get Started</Text>
-          }
-        </TouchableOpacity>
-      </View>
-    </KeyboardAvoidingView>
+          {error && (
+            <View style={styles.errorBox}>
+              <Text style={styles.errorText}>⚠ {error}</Text>
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.button, !canSubmit && styles.buttonDisabled]}
+            onPress={handleSubmit}
+            disabled={!canSubmit}
+          >
+            {loading
+              ? <ActivityIndicator color={Colors.textInverse} />
+              : <Text style={styles.buttonText}>Get Started →</Text>
+            }
+          </TouchableOpacity>
+        </View>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  inner: { flex: 1, padding: Spacing.lg, justifyContent: 'center' },
-  back: { position: 'absolute', top: Spacing.xl, left: Spacing.lg },
-  backText: { color: Colors.accent, fontSize: FontSize.md },
-  title: {
-    fontSize:   FontSize.xxl,
+  safeArea:  { flex: 1, backgroundColor: Colors.background },
+  container: { flex: 1 },
+  inner: {
+    flex: 1,
+    paddingHorizontal: Spacing.lg,
+    justifyContent: 'center',
+  },
+
+  brand: {
+    alignItems: 'center',
+    marginBottom: Spacing.xl,
+  },
+  logoMark: {
+    width: 48,
+    height: 48,
+    borderRadius: 13,
+    backgroundColor: Colors.primary,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: Spacing.sm,
+  },
+  logoLetter: {
+    fontSize:   24,
+    fontWeight: FontWeight.bold,
+    color:      Colors.textInverse,
+  },
+  logoName: {
+    fontSize:   FontSize.xl,
     fontWeight: FontWeight.bold,
     color:      Colors.text,
+  },
+
+  backBtn: { marginBottom: Spacing.lg },
+  backText: { color: Colors.accent, fontSize: FontSize.sm },
+
+  title: {
+    fontSize:     FontSize.xxl,
+    fontWeight:   FontWeight.bold,
+    color:        Colors.text,
     marginBottom: Spacing.xs,
   },
   subtitle: {
-    fontSize: FontSize.md,
-    color:    Colors.textSecondary,
+    fontSize:     FontSize.sm,
+    color:        Colors.textSecondary,
     marginBottom: Spacing.xl,
   },
+
   input: {
-    backgroundColor: Colors.surface,
-    borderWidth:  1,
-    borderColor:  Colors.border,
-    borderRadius: Radius.md,
+    backgroundColor:   Colors.surface,
+    borderWidth:       1,
+    borderColor:       Colors.border,
+    borderRadius:      Radius.md,
     paddingHorizontal: Spacing.md,
     paddingVertical:   Spacing.sm + 4,
-    fontSize: FontSize.lg,
-    color:    Colors.text,
-    marginBottom: Spacing.sm,
+    fontSize:          FontSize.lg,
+    color:             Colors.text,
+    marginBottom:      Spacing.sm,
   },
   inputError: { borderColor: Colors.error },
-  errorText: { color: Colors.error, fontSize: FontSize.sm, marginBottom: Spacing.md },
+
+  errorBox: {
+    backgroundColor:   Colors.errorLight,
+    borderRadius:      Radius.sm,
+    paddingHorizontal: Spacing.md,
+    paddingVertical:   Spacing.sm,
+    marginBottom:      Spacing.sm,
+  },
+  errorText: { color: Colors.error, fontSize: FontSize.sm },
+
   button: {
     backgroundColor: Colors.accent,
     borderRadius:    Radius.md,
-    paddingVertical: Spacing.md,
+    paddingVertical: Spacing.md + 2,
     alignItems:      'center',
     marginTop:       Spacing.sm,
   },
-  buttonDisabled: { opacity: 0.6 },
+  buttonDisabled: { opacity: 0.5 },
   buttonText: {
     color:      Colors.textInverse,
     fontSize:   FontSize.md,
-    fontWeight: FontWeight.semibold,
+    fontWeight: FontWeight.bold,
   },
 })

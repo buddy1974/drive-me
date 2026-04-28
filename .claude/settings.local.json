@@ -8,7 +8,29 @@
       "Bash(npx --version)",
       "Bash(npm list:*)",
       "Bash(npm install:*)",
-      "Bash(yarn:*)"
+      "Bash(yarn:*)",
+      "Bash(rm -rf \"C:/Users/loneb/Documents/ai-software-dev/projects/drive-me/apps/admin/.git\")",
+      "Bash(rm -rf \"C:/Users/loneb/Documents/ai-software-dev/projects/drive-me/apps/mobile/.git\")",
+      "Bash(docker-compose -f infrastructure/docker-compose.yml up -d postgres)",
+      "Bash(npx prisma:*)",
+      "Bash(npx tsc:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(git push:*)",
+      "Bash(curl:*)",
+      "Bash(node_modules/.bin/tsc --noEmit)",
+      "Bash(dir \"C:\\\\Users\\\\loneb\\\\Documents\\\\ai-software-dev\\\\projects\\\\drive-me\\\\node_modules\")",
+      "Bash(findstr gesture:*)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(list\\(d.get\\('peerDependencies',{}\\).keys\\(\\)\\)\\)\")",
+      "Bash(node:*)",
+      "Bash(DATABASE_URL=\"postgresql://drive_me_db_user:zlI6naUKgJ1Od2pgmdn8eFg0lDqw4F9u@dpg-d7da1vnlk1mc73el2ak0-a.frankfurt-postgres.render.com/drive_me_db\" npx ts-node --project tsconfig.json prisma/seed-agent.ts)",
+      "Bash(npx ts-node -e ':*)",
+      "Bash(DATABASE_URL=\"postgresql://drive_me_db_user:zlI6naUKgJ1Od2pgmdn8eFg0lDqw4F9u@dpg-d7da1vnlk1mc73el2ak0-a.frankfurt-postgres.render.com/drive_me_db\" node_modules/.bin/ts-node --project tsconfig.json prisma/_demo-seed.ts)",
+      "Bash(eas --version)",
+      "Bash(npx expo:*)",
+      "Bash(eas build:*)",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\('Version:', d['expo']['version']\\); print\\('SDK:', d['expo']['sdkVersion']\\)\")",
+      "Bash(python -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d['expo'], indent=2\\)\\)\")"
     ]
   }
 }

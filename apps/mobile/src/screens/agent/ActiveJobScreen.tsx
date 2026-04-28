@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react'
 import {
   View, Text, StyleSheet, ScrollView, TouchableOpacity, ActivityIndicator,
 } from 'react-native'
@@ -7,6 +7,7 @@ import type { StackNavigationProp } from '@react-navigation/stack'
 import type { RouteProp }           from '@react-navigation/native'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { SafeAreaView }             from 'react-native-safe-area-context'
+import * as Location                from 'expo-location'
 import { api }                      from '../../services/api'
 import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../constants/theme'
 import type { AgentJobsStackParamList } from '../../navigation/types'
@@ -32,6 +33,11 @@ const STATUS_DISPLAY: Record<string, string> = {
   COMPLETED:              'Completed ✓',
 }
 
+const ACTIVE_FOR_GPS: JobStatus[] = [
+  'ACCEPTED', 'EN_ROUTE_TO_PICKUP', 'ARRIVED_AT_PICKUP',
+  'IN_PROGRESS', 'ARRIVED_AT_DESTINATION',
+]
+
 export default function ActiveJobScreen() {
   const navigation  = useNavigation<Nav>()
   const { params }  = useRoute<Route>()
@@ -50,6 +56,32 @@ export default function ActiveJobScreen() {
       return s === 'COMPLETED' || s?.startsWith('CANCELLED') ? false : 5000
     },
   })
+
+  // Request location permission once on mount
+  useEffect(() => {
+    void Location.requestForegroundPermissionsAsync()
+  }, [])
+
+  // Post GPS position every 8 seconds while job is in an active state
+  useEffect(() => {
+    if (!job || !ACTIVE_FOR_GPS.includes(job.status as JobStatus)) return
+
+    const interval = setInterval(async () => {
+      try {
+        const pos = await Location.getCurrentPositionAsync({
+          accuracy: Location.Accuracy.Balanced,
+        })
+        await api.post(`/jobs/${params.jobId}/location`, {
+          lat: pos.coords.latitude,
+          lng: pos.coords.longitude,
+        })
+      } catch {
+        // best-effort — never break the UI
+      }
+    }, 8000)
+
+    return () => clearInterval(interval)
+  }, [job?.status, params.jobId])
 
   async function handleUpdateStatus() {
     if (!job) return
@@ -105,7 +137,7 @@ export default function ActiveJobScreen() {
     )
   }
 
-  const nextAction = NEXT_STATUS[job.status]
+  const nextAction  = NEXT_STATUS[job.status]
   const isCompleted = job.status === 'COMPLETED'
   const isCancelled = job.status.startsWith('CANCELLED')
 

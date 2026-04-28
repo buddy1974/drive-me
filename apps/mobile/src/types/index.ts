@@ -70,6 +70,30 @@ export interface AgentEarnings {
   updatedAt:     string | null
 }
 
+export interface LocationUpdate {
+  id:        string
+  jobId:     string
+  agentId:   string
+  lat:       number
+  lng:       number
+  w3w:       string | null
+  createdAt: string
+}
+
+export interface AgentProfile {
+  id:           string
+  name:         string
+  phone:        string
+  status:       string
+  vehicleType:  string
+  vehiclePlate: string
+  vehicleMake:  string
+  vehicleModel: string
+  vehicleYear:  number
+  momoPhone:    string | null
+  orangePhone:  string | null
+}
+
 export interface ApiError {
   error: string
 }

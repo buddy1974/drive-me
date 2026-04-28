@@ -1,11 +1,14 @@
 import { apiFetch } from '@/lib/api'
 import type { AdminData, AdminStats } from '@/types'
 
-function StatCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value, icon }: { label: string; value: string; icon: string }) {
   return (
-    <div className="bg-white rounded-xl border border-zinc-200 p-5">
-      <p className="text-sm text-zinc-500">{label}</p>
-      <p className="text-2xl font-semibold text-zinc-900 mt-1">{value}</p>
+    <div className="bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+      <div className="flex items-center justify-between mb-3">
+        <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">{label}</p>
+        <span className="text-lg">{icon}</span>
+      </div>
+      <p className="text-2xl font-semibold text-slate-100">{value}</p>
     </div>
   )
 }
@@ -23,7 +26,7 @@ export default async function DashboardPage() {
   if (adminError || !admin) {
     return (
       <div className="p-8">
-        <p className="text-sm text-red-600">Failed to load: {adminError}</p>
+        <p className="text-sm text-red-400">Failed to load: {adminError}</p>
       </div>
     )
   }
@@ -31,25 +34,25 @@ export default async function DashboardPage() {
   return (
     <div className="p-8">
       <div className="mb-8">
-        <h1 className="text-xl font-semibold text-zinc-900">Overview</h1>
-        <p className="text-sm text-zinc-500 mt-1">
-          Signed in as <span className="font-medium text-zinc-700">{admin.email}</span>
+        <h1 className="text-xl font-semibold text-slate-100">Overview</h1>
+        <p className="text-sm text-slate-400 mt-1">
+          Signed in as <span className="font-medium text-slate-300">{admin.email}</span>
           {' '}·{' '}
-          <span className="font-medium text-zinc-700">
+          <span className="font-medium text-slate-300">
             {admin.role === 'SUPER_ADMIN' ? 'Super Admin' : 'Operator'}
           </span>
         </p>
       </div>
 
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Total agents" value={String(stats?.totalAgents ?? 0)} />
-        <StatCard label="Active jobs" value={String(stats?.activeJobs ?? 0)} />
-        <StatCard label="Total users" value={String(stats?.totalUsers ?? 0)} />
-        <StatCard label="Revenue" value={formatXAF(stats?.revenue ?? 0)} />
+        <StatCard label="Total agents" value={String(stats?.totalAgents ?? 0)} icon="👤" />
+        <StatCard label="Active jobs"  value={String(stats?.activeJobs  ?? 0)} icon="📋" />
+        <StatCard label="Total users"  value={String(stats?.totalUsers  ?? 0)} icon="🧑" />
+        <StatCard label="Revenue"      value={formatXAF(stats?.revenue  ?? 0)} icon="💰" />
       </div>
 
-      <div className="mt-8 bg-white rounded-xl border border-zinc-200 p-5">
-        <h2 className="text-sm font-semibold text-zinc-900 mb-4">System status</h2>
+      <div className="mt-8 bg-[#1E293B] rounded-xl border border-[#334155] p-5">
+        <h2 className="text-sm font-semibold text-slate-100 mb-4">System status</h2>
         <div className="space-y-2">
           {[
             { label: 'API', value: 'Online' },
@@ -57,9 +60,9 @@ export default async function DashboardPage() {
             { label: 'Database', value: 'Connected' },
           ].map(({ label, value }) => (
             <div key={label} className="flex items-center justify-between text-sm">
-              <span className="text-zinc-600">{label}</span>
-              <span className="flex items-center gap-1.5 text-emerald-600 font-medium">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 inline-block" />
+              <span className="text-slate-400">{label}</span>
+              <span className="flex items-center gap-1.5 text-emerald-400 font-medium">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block" />
                 {value}
               </span>
             </div>

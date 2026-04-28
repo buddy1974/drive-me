@@ -3,12 +3,12 @@ import { AgentActions } from '@/components/AgentActions'
 import type { AgentListItem, PaginatedResponse } from '@/types'
 
 const AGENT_STATUS: Record<string, { label: string; className: string }> = {
-  PENDING_VERIFICATION: { label: 'Pending', className: 'bg-amber-50 text-amber-700 border-amber-200' },
-  VERIFIED:             { label: 'Verified', className: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
-  ONLINE:               { label: 'Online', className: 'bg-blue-50 text-blue-700 border-blue-200' },
-  OFFLINE:              { label: 'Offline', className: 'bg-zinc-100 text-zinc-600 border-zinc-200' },
-  SUSPENDED:            { label: 'Suspended', className: 'bg-orange-50 text-orange-700 border-orange-200' },
-  BANNED:               { label: 'Banned', className: 'bg-red-50 text-red-700 border-red-200' },
+  PENDING_VERIFICATION: { label: 'Pending',   className: 'bg-amber-500/10 text-amber-400 border-amber-500/30' },
+  VERIFIED:             { label: 'Verified',  className: 'bg-emerald-500/10 text-emerald-400 border-emerald-500/30' },
+  ONLINE:               { label: 'Online',    className: 'bg-blue-500/10 text-blue-400 border-blue-500/30' },
+  OFFLINE:              { label: 'Offline',   className: 'bg-slate-500/10 text-slate-400 border-slate-500/30' },
+  SUSPENDED:            { label: 'Suspended', className: 'bg-orange-500/10 text-orange-400 border-orange-500/30' },
+  BANNED:               { label: 'Banned',    className: 'bg-red-500/10 text-red-400 border-red-500/30' },
 }
 
 const VEHICLE_LABEL: Record<string, string> = {
@@ -24,11 +24,20 @@ const LEVEL_LABEL: Record<string, string> = {
 }
 
 function StatusBadge({ status }: { status: string }) {
-  const s = AGENT_STATUS[status] ?? { label: status, className: 'bg-zinc-100 text-zinc-600 border-zinc-200' }
+  const s = AGENT_STATUS[status] ?? { label: status, className: 'bg-slate-500/10 text-slate-400 border-slate-500/30' }
   return (
     <span className={`inline-flex items-center px-2 py-0.5 rounded-md border text-xs font-medium ${s.className}`}>
       {s.label}
     </span>
+  )
+}
+
+function AgentAvatar({ name }: { name: string }) {
+  const initials = name.split(' ').map((n) => n[0]).join('').slice(0, 2).toUpperCase()
+  return (
+    <div className="w-8 h-8 rounded-full bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center shrink-0">
+      <span className="text-xs font-bold text-indigo-400">{initials}</span>
+    </div>
   )
 }
 
@@ -52,23 +61,23 @@ export default async function AgentsPage({
   )
 
   const agents = data?.data ?? []
-  const total = data?.total ?? 0
+  const total  = data?.total ?? 0
 
   return (
     <div className="p-8">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-zinc-900">Agent verification</h1>
-          <p className="text-sm text-zinc-500 mt-1">
+          <h1 className="text-xl font-semibold text-slate-100">Agent verification</h1>
+          <p className="text-sm text-slate-400 mt-1">
             {total} agent{total !== 1 ? 's' : ''} total
           </p>
         </div>
 
         <div className="flex gap-2">
           {[
-            { label: 'All', value: undefined },
-            { label: 'Pending', value: 'PENDING_VERIFICATION' },
-            { label: 'Verified', value: 'VERIFIED' },
+            { label: 'All',       value: undefined },
+            { label: 'Pending',   value: 'PENDING_VERIFICATION' },
+            { label: 'Verified',  value: 'VERIFIED' },
             { label: 'Suspended', value: 'SUSPENDED' },
           ].map(({ label, value }) => {
             const isActive = (value ?? '') === (status ?? '')
@@ -79,8 +88,8 @@ export default async function AgentsPage({
                 href={href}
                 className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
                   isActive
-                    ? 'bg-zinc-900 text-white border-zinc-900'
-                    : 'bg-white text-zinc-600 border-zinc-200 hover:border-zinc-400'
+                    ? 'bg-[#1A56DB] text-white border-[#1A56DB]'
+                    : 'bg-[#1E293B] text-slate-400 border-[#334155] hover:border-slate-400'
                 }`}
               >
                 {label}
@@ -91,45 +100,50 @@ export default async function AgentsPage({
       </div>
 
       {error && (
-        <div className="mb-4 px-4 py-3 rounded-lg bg-red-50 border border-red-200 text-sm text-red-700">
+        <div className="mb-4 px-4 py-3 rounded-lg bg-red-500/10 border border-red-500/30 text-sm text-red-400">
           Failed to load agents: {error}
         </div>
       )}
 
-      <div className="bg-white rounded-xl border border-zinc-200 overflow-hidden">
+      <div className="bg-[#1E293B] rounded-xl border border-[#334155] overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="border-b border-zinc-100 bg-zinc-50">
+            <tr className="border-b border-[#334155] bg-[#0F172A]">
               {['Name', 'Phone', 'Status', 'Level', 'Vehicle', 'Rating', 'Applied', 'Actions'].map((h) => (
-                <th key={h} className="text-left px-4 py-3 text-xs font-medium text-zinc-500 uppercase tracking-wide">
+                <th key={h} className="text-left px-4 py-3 text-xs font-medium text-slate-400 uppercase tracking-wide">
                   {h}
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-zinc-100">
+          <tbody className="divide-y divide-[#334155]">
             {agents.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-4 py-12 text-center">
-                  <p className="text-zinc-400 text-sm">No agents yet</p>
+                  <p className="text-slate-500 text-sm">No agents yet</p>
                 </td>
               </tr>
             ) : (
               agents.map((agent) => (
-                <tr key={agent.id} className="hover:bg-zinc-50 transition-colors">
-                  <td className="px-4 py-3 font-medium text-zinc-900">{agent.name}</td>
-                  <td className="px-4 py-3 text-zinc-600">{agent.phone}</td>
+                <tr key={agent.id} className="hover:bg-[#243144] transition-colors">
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-3">
+                      <AgentAvatar name={agent.name} />
+                      <span className="font-medium text-slate-100">{agent.name}</span>
+                    </div>
+                  </td>
+                  <td className="px-4 py-3 text-slate-400">{agent.phone}</td>
                   <td className="px-4 py-3">
                     <StatusBadge status={agent.status} />
                   </td>
-                  <td className="px-4 py-3 text-zinc-600">{LEVEL_LABEL[agent.agentLevel] ?? agent.agentLevel}</td>
-                  <td className="px-4 py-3 text-zinc-600">{VEHICLE_LABEL[agent.vehicleType] ?? agent.vehicleType}</td>
-                  <td className="px-4 py-3 text-zinc-600">
+                  <td className="px-4 py-3 text-slate-400">{LEVEL_LABEL[agent.agentLevel] ?? agent.agentLevel}</td>
+                  <td className="px-4 py-3 text-slate-400">{VEHICLE_LABEL[agent.vehicleType] ?? agent.vehicleType}</td>
+                  <td className="px-4 py-3 text-slate-400">
                     {agent.totalRatings > 0
                       ? `${agent.avgRating.toFixed(1)} (${agent.totalRatings})`
                       : '—'}
                   </td>
-                  <td className="px-4 py-3 text-zinc-500 text-xs">{formatDate(agent.createdAt)}</td>
+                  <td className="px-4 py-3 text-slate-500 text-xs">{formatDate(agent.createdAt)}</td>
                   <td className="px-4 py-3">
                     <AgentActions agentId={agent.id} status={agent.status} />
                   </td>
@@ -141,7 +155,7 @@ export default async function AgentsPage({
       </div>
 
       {data && data.totalPages > 1 && (
-        <div className="mt-4 flex items-center justify-between text-sm text-zinc-500">
+        <div className="mt-4 flex items-center justify-between text-sm text-slate-400">
           <span>
             Page {data.page} of {data.totalPages} · {total} total
           </span>
@@ -149,7 +163,7 @@ export default async function AgentsPage({
             {data.page > 1 && (
               <a
                 href={`/agents?${new URLSearchParams({ ...(status ? { status } : {}), page: String(data.page - 1) }).toString()}`}
-                className="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white hover:border-zinc-400 transition-colors"
+                className="px-3 py-1.5 rounded-lg border border-[#334155] bg-[#1E293B] hover:border-slate-400 transition-colors"
               >
                 Previous
               </a>
@@ -157,7 +171,7 @@ export default async function AgentsPage({
             {data.page < data.totalPages && (
               <a
                 href={`/agents?${new URLSearchParams({ ...(status ? { status } : {}), page: String(data.page + 1) }).toString()}`}
-                className="px-3 py-1.5 rounded-lg border border-zinc-200 bg-white hover:border-zinc-400 transition-colors"
+                className="px-3 py-1.5 rounded-lg border border-[#334155] bg-[#1E293B] hover:border-slate-400 transition-colors"
               >
                 Next
               </a>

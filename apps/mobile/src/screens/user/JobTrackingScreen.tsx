@@ -11,7 +11,7 @@ import { api }               from '../../services/api'
 import { useJobStore }       from '../../store/jobStore'
 import { Colors, Spacing, Radius, FontSize, FontWeight } from '../../constants/theme'
 import type { HomeStackParamList } from '../../navigation/types'
-import type { Job, JobStatus }     from '../../types'
+import type { Job, JobStatus, LocationUpdate } from '../../types'
 
 type Nav   = StackNavigationProp<HomeStackParamList, 'JobTracking'>
 type Route = RouteProp<HomeStackParamList, 'JobTracking'>
@@ -57,6 +57,21 @@ export default function JobTrackingScreen() {
       if (!status) return 3000
       return isActive(status) ? 5000 : false
     },
+  })
+
+  // Poll agent location every 8 seconds while job is active
+  const { data: location } = useQuery<LocationUpdate | null>({
+    queryKey: ['job', params.jobId, 'location'],
+    queryFn:  async () => {
+      const { data } = await api.get<LocationUpdate | null>(`/jobs/${params.jobId}/location`)
+      return data
+    },
+    refetchInterval: (query) => {
+      if (!job) return false
+      const status = job.status
+      return isActive(status) ? 8000 : false
+    },
+    enabled: !!job,
   })
 
   async function handleCancel() {
@@ -121,6 +136,17 @@ export default function JobTrackingScreen() {
           </Text>
         </View>
 
+        {/* Agent W3W location — shown when GPS data is available */}
+        {location?.w3w && (
+          <View style={styles.w3wCard}>
+            <Text style={styles.w3wLabel}>Agent location</Text>
+            <Text style={styles.w3wAddress}>///{location.w3w}</Text>
+            <Text style={styles.w3wUpdated}>
+              Updated {new Date(location.createdAt).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
+            </Text>
+          </View>
+        )}
+
         {/* Progress steps */}
         {!job.status.startsWith('CANCELLED') && (
           <View style={styles.progressContainer}>
@@ -158,7 +184,7 @@ export default function JobTrackingScreen() {
           {job.agent && <DetailRow label="Agent" value={`${job.agent.name} • ${job.agent.phone}`} />}
         </View>
 
-        {/* Cancel button — only at PENDING or ACCEPTED */}
+        {/* Cancel button */}
         {(job.status === 'PENDING' || job.status === 'ACCEPTED') && (
           <TouchableOpacity style={styles.cancelBtn} onPress={handleCancel}>
             <Text style={styles.cancelText}>Cancel Job</Text>
@@ -214,6 +240,19 @@ const styles = StyleSheet.create({
   statusCompleted: { backgroundColor: Colors.successLight },
   statusCancelled: { backgroundColor: Colors.errorLight },
   statusText: { fontSize: FontSize.md, fontWeight: FontWeight.semibold, color: Colors.accent },
+
+  w3wCard: {
+    backgroundColor: Colors.surface,
+    borderWidth:  1,
+    borderColor:  Colors.primary,
+    borderRadius: Radius.lg,
+    padding:      Spacing.md,
+    marginBottom: Spacing.lg,
+  },
+  w3wLabel:   { fontSize: FontSize.xs, color: Colors.textSecondary, textTransform: 'uppercase', letterSpacing: 0.5 },
+  w3wAddress: { fontSize: FontSize.lg, fontWeight: FontWeight.bold, color: Colors.primary, marginTop: 2 },
+  w3wUpdated: { fontSize: FontSize.xs, color: Colors.textDisabled, marginTop: 2 },
+
   progressContainer: { marginBottom: Spacing.lg },
   progressRow: { flexDirection: 'row', alignItems: 'flex-start', paddingLeft: Spacing.xs },
   dot: { width: 12, height: 12, borderRadius: 6, marginTop: 3, marginRight: Spacing.sm },

@@ -10,6 +10,8 @@ import {
   acceptJobHandler,
   updateJobStatusHandler,
   cancelJobHandler,
+  postLocationHandler,
+  getLocationHandler,
 } from '../controllers/job.controller'
 
 const router = Router()
@@ -52,6 +54,8 @@ router.get('/my',        authenticate, getMyJobsHandler)
 router.get('/:id',       authenticate, getJobHandler)
 router.patch('/:id/accept', authenticate, acceptJobHandler)
 router.patch('/:id/status', authenticate, validate(updateStatusSchema), updateJobStatusHandler)
-router.post('/:id/cancel', authenticate, validate(cancelSchema), cancelJobHandler)
+router.post('/:id/cancel',   authenticate, validate(cancelSchema), cancelJobHandler)
+router.post('/:id/location', authenticate, validate(z.object({ lat: z.number(), lng: z.number() })), postLocationHandler)
+router.get('/:id/location',  authenticate, getLocationHandler)
 
 export default router
